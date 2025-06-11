@@ -32,6 +32,11 @@ const router = createRouter({
 
 // 全局导航守卫
 router.beforeEach((to, from, next) => {
+  // 临时禁用登录检查，直接放行所有路由
+  next();
+  
+  // 原始代码（暂时注释掉）
+  /*
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   
   if (to.meta.requiresAuth && !isLoggedIn) {
@@ -39,6 +44,7 @@ router.beforeEach((to, from, next) => {
   } else {
     next();
   }
+  */
 });
 
 export default router

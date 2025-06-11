@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import ElevatorVisualizer from '../components/ElevatorVisualizer.vue';
 import ControlPanel from '../components/ControlPanel.vue';
 import HeaderPanel from '../components/HeaderPanel.vue';
 import FooterPanel from '../components/FooterPanel.vue';
 import SystemMonitor from '../components/SystemMonitor.vue';
+import AIAnalysisNotification from '../components/AIAnalysisNotification.vue';
+import DataCollectionService from '../services/DataCollectionService';
 
 const router = useRouter();
 
@@ -36,13 +38,16 @@ const elevatorData = ref({
       icon: '⚙️',
       status: '正常',
       runningHours: 5231,
-      temperature: 42.5,
+      temperature: 65.5,
       faultCode: '无',
       parameters: [
-        { name: '电机转速', value: 1420, unit: 'rpm' },
-        { name: '电流', value: 18.5, unit: 'A' },
-        { name: '电压', value: 380, unit: 'V' },
-        { name: '制动力矩', value: 320, unit: 'N·m' }
+        { name: '电机温度', value: 65.5, unit: '°C', normal: '≤80°C' },
+        { name: '轴承温度', value: 75.2, unit: '°C', normal: '≤95°C' },
+        { name: '振动速度', value: 1.8, unit: 'mm/s', normal: '≤2.8 mm/s' },
+        { name: '电流', value: 18.5, unit: 'A', normal: '额定值±10%' },
+        { name: '钢丝绳磨损', value: 5.2, unit: '%', normal: '≤10%' },
+        { name: '断丝数', value: 2, unit: '根/股', normal: '≤5根/股' },
+        { name: '制动间隙', value: 0.8, unit: 'mm', normal: '0.5-1.0 mm' }
       ]
     },
     {
@@ -54,25 +59,26 @@ const elevatorData = ref({
       temperature: 38.2,
       faultCode: '无',
       parameters: [
-        { name: '导轨磨损', value: 0.2, unit: 'mm' },
-        { name: '导靴间隙', value: 1.5, unit: 'mm' },
-        { name: '润滑状态', value: 85, unit: '%' },
-        { name: '振动值', value: 0.8, unit: 'mm/s' }
+        { name: '导轨垂直度偏差', value: 0.3, unit: 'mm/m', normal: '≤0.5 mm/m' },
+        { name: '接头间隙', value: 0.4, unit: 'mm', normal: '≤0.5 mm' },
+        { name: '导靴磨损量', value: 1.2, unit: 'mm', normal: '≤2 mm' },
+        { name: '振动值', value: 0.8, unit: 'mm/s', normal: '≤2.8 mm/s' }
       ]
     },
     {
       id: 'sys-003',
-      name: '轿厢系统',
-      icon: '🔲',
+      name: '电气控制系统',
+      icon: '⚡',
       status: '正常',
       runningHours: 5231,
-      temperature: 26.8,
+      temperature: 38.5,
       faultCode: '无',
       parameters: [
-        { name: '平衡系数', value: 0.95, unit: '' },
-        { name: '悬挂比', value: 2, unit: ':1' },
-        { name: '钢缆张力', value: 2800, unit: 'N' },
-        { name: '轿厢水平度', value: 0.5, unit: '°' }
+        { name: '电压波动', value: 5.2, unit: '%', normal: '±10%内' },
+        { name: '电流负载', value: 85, unit: '%', normal: '≤额定值' },
+        { name: '触点电压降', value: 45, unit: 'mV', normal: '≤50 mV' },
+        { name: '控制响应时间', value: 0.4, unit: 's', normal: '≤0.5秒' },
+        { name: '电源开关状态', value: '正常', unit: '', normal: '控制箱' }
       ]
     },
     {
@@ -84,13 +90,26 @@ const elevatorData = ref({
       temperature: 32.1,
       faultCode: '无',
       parameters: [
-        { name: '开门时间', value: 3.2, unit: 's' },
-        { name: '关门时间', value: 3.5, unit: 's' },
-        { name: '门机电流', value: 2.4, unit: 'A' },
-        { name: '门锁状态', value: 100, unit: '%' }
+        { name: '触点电阻', value: 0.3, unit: 'Ω', normal: '≤0.5 Ω' },
+        { name: '机械闭合深度', value: 8.5, unit: 'mm', normal: '≥7 mm' },
+        { name: '开关门时间', value: 2.5, unit: 's', normal: '2-3 s' },
+        { name: '门机电流', value: 2.4, unit: 'A', normal: '额定值±10%' }
       ]
     }
   ]
+});
+
+// AI分析结果
+const aiAnalysisResult = ref(null);
+const showAINotification = ref(false);
+
+// 定时器变量
+let aiAnalysisInterval = null;
+
+// 数据采集服务实例
+const dataCollectionService = new DataCollectionService({
+  collectionInterval: 5000, // 5秒采集一次数据
+  batchSize: 5 // 每5条异常数据批量发送
 });
 
 // 跳转到系统详情页
@@ -98,8 +117,66 @@ const navigateToSystemDetail = (systemId) => {
   router.push(`/system/${systemId}`);
 };
 
+// 处理异常检测回调
+const handleAnomalyDetected = (anomalies) => {
+  console.log('检测到异常数据:', anomalies);
+  // 可以在这里添加本地通知或其他处理
+};
+
+// 获取AI分析结果
+const fetchAIAnalysis = async () => {
+  try {
+    // 模拟从后端获取AI分析结果
+    // 实际项目中应该调用dataCollectionService.getAIAnalysis()
+    const mockAIResult = {
+      id: 'ai-analysis-001',
+      timestamp: Date.now(),
+      systemId: 'sys-001', // 对应系统ID
+      severity: Math.random() > 0.5 ? 'warning' : 'critical', // 随机严重程度
+      systemInfo: {
+        name: '曳引系统',
+        status: Math.random() > 0.3 ? '正常' : '故障'
+      },
+      summary: '检测到曳引机轴承温度异常波动，可能存在润滑不足或轴承磨损问题。',
+      details: [
+        '轴承温度在过去30分钟内波动范围超过15°C',
+        '振动值呈现逐步上升趋势',
+        '电机电流波动超出正常范围'
+      ],
+      recommendations: [
+        '建议检查轴承润滑情况',
+        '检测轴承是否存在异常磨损',
+        '安排技术人员进行现场检查'
+      ]
+    };
+
+    // 更新AI分析结果并显示通知
+    aiAnalysisResult.value = mockAIResult;
+    showAINotification.value = true;
+  } catch (error) {
+    console.error('获取AI分析结果失败:', error);
+  }
+};
+
+// 处理通知关闭
+const handleNotificationClose = () => {
+  showAINotification.value = false;
+};
+
+// 处理查看系统详情
+const handleViewSystemDetails = (systemId) => {
+  navigateToSystemDetail(systemId);
+};
+
 // 模拟电梯运行
 onMounted(() => {
+  // 设置电梯ID
+  dataCollectionService.setElevatorId(elevatorData.value.id);
+  
+  // 启动数据采集
+  dataCollectionService.startCollection(elevatorData, handleAnomalyDetected);
+  
+  // 原有的模拟代码
   setInterval(() => {
     // 模拟电梯运行逻辑
     if (elevatorData.value.currentFloor < elevatorData.value.targetFloor) {
@@ -128,47 +205,203 @@ onMounted(() => {
     // 模拟四大系统数据更新
     elevatorData.value.systems.forEach(system => {
       // 更新系统温度
-      const baseTemp = system.id === 'sys-001' ? 42 : system.id === 'sys-002' ? 38 : system.id === 'sys-003' ? 26 : 32;
-      system.temperature = (baseTemp + Math.random() * 3).toFixed(1);
+      if (system.id === 'sys-001') {
+        // 曳引系统温度更新
+        system.temperature = (60 + Math.random() * 15).toFixed(1);
+        
+        // 更新参数
+        system.parameters.forEach(param => {
+          if (param.name === '电机温度') {
+            param.value = system.temperature;
+            // 检查是否超出正常范围
+            if (param.value > 80) {
+              system.status = '故障';
+              system.faultCode = 'E001-电机过热';
+            }
+          } else if (param.name === '轴承温度') {
+            param.value = (system.temperature * 1.15).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 95) {
+              system.status = '故障';
+              system.faultCode = 'E002-轴承过热';
+            }
+          } else if (param.name === '振动速度') {
+            param.value = (1.5 + Math.random() * 1.5).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 2.8) {
+              system.status = '故障';
+              system.faultCode = 'E003-振动异常';
+            }
+          } else if (param.name === '电流') {
+            const baseValue = 18.5;
+            const variation = Math.random() * 4 - 2; // -2到2的变化
+            param.value = (baseValue + variation).toFixed(1);
+            // 检查是否超出正常范围
+            if (Math.abs(variation) > 1.85) { // 超过10%
+              system.status = '故障';
+              system.faultCode = 'E004-电流波动过大';
+            }
+          } else if (param.name === '钢丝绳磨损') {
+            param.value = (5 + Math.random() * 7).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 10) {
+              system.status = '故障';
+              system.faultCode = 'E005-钢丝绳磨损严重';
+            }
+          } else if (param.name === '断丝数') {
+            param.value = Math.floor(1 + Math.random() * 8);
+            // 检查是否超出正常范围
+            if (param.value > 5) {
+              system.status = '故障';
+              system.faultCode = 'E006-钢丝绳断丝过多';
+            }
+          } else if (param.name === '制动间隙') {
+            param.value = (0.5 + Math.random() * 1.0).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 1.0) {
+              system.status = '故障';
+              system.faultCode = 'E007-制动间隙过大';
+            }
+          }
+        });
+      } else if (system.id === 'sys-002') {
+        // 导向系统温度更新
+        system.temperature = (35 + Math.random() * 8).toFixed(1);
+        
+        // 更新参数
+        system.parameters.forEach(param => {
+          if (param.name === '导轨垂直度偏差') {
+            param.value = (0.2 + Math.random() * 0.5).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 0.5) {
+              system.status = '故障';
+              system.faultCode = 'G001-导轨垂直度异常';
+            }
+          } else if (param.name === '接头间隙') {
+            param.value = (0.3 + Math.random() * 0.4).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 0.5) {
+              system.status = '故障';
+              system.faultCode = 'G002-导轨接头间隙过大';
+            }
+          } else if (param.name === '导靴磨损量') {
+            param.value = (1.0 + Math.random() * 2.5).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 2.0) {
+              system.status = '故障';
+              system.faultCode = 'G003-导靴磨损超标';
+            }
+          } else if (param.name === '振动值') {
+            param.value = (0.5 + Math.random() * 1.0).toFixed(1);
+          }
+        });
+      } else if (system.id === 'sys-003') {
+        // 电气控制系统温度更新
+        system.temperature = (35 + Math.random() * 10).toFixed(1);
+        
+        // 更新参数
+        system.parameters.forEach(param => {
+          if (param.name === '电压波动') {
+            param.value = (Math.random() * 18 - 2).toFixed(1); // -2%到16%的波动
+            // 检查是否超出正常范围
+            if (Math.abs(param.value) > 10) {
+              system.status = '故障';
+              system.faultCode = 'E101-电压波动过大';
+            }
+          } else if (param.name === '电流负载') {
+            param.value = (80 + Math.random() * 30).toFixed(0); // 80%到110%的负载
+            // 检查是否超出正常范围
+            if (param.value > 100) {
+              system.status = '故障';
+              system.faultCode = 'E102-电流过载';
+            }
+          } else if (param.name === '触点电压降') {
+            param.value = (30 + Math.random() * 90).toFixed(0); // 30mV到120mV的电压降
+            // 检查是否超出正常范围
+            if (param.value > 100) {
+              system.status = '故障';
+              system.faultCode = 'E103-触点电压降过高';
+            }
+          } else if (param.name === '控制响应时间') {
+            param.value = (0.2 + Math.random() * 1.0).toFixed(1); // 0.2s到1.2s的响应时间
+            // 检查是否超出正常范围
+            if (param.value > 1.0) {
+              system.status = '故障';
+              system.faultCode = 'E104-控制响应超时';
+            }
+          } else if (param.name === '电源开关状态') {
+            // 95%概率保持正常，5%概率出现故障
+            if (Math.random() > 0.95) {
+              param.value = '异常';
+              system.status = '故障';
+              system.faultCode = 'E105-电源开关异常';
+            } else {
+              param.value = '正常';
+            }
+          }
+        });
+      } else if (system.id === 'sys-004') {
+        // 门系统温度更新
+        system.temperature = (30 + Math.random() * 6).toFixed(1);
+        
+        // 更新参数
+        system.parameters.forEach(param => {
+          if (param.name === '触点电阻') {
+            param.value = (0.2 + Math.random() * 0.5).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 0.5) {
+              system.status = '故障';
+              system.faultCode = 'D001-触点电阻过大';
+            }
+          } else if (param.name === '机械闭合深度') {
+            param.value = (6.5 + Math.random() * 3.0).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value < 7.0) {
+              system.status = '故障';
+              system.faultCode = 'D002-门铁闭合不足';
+            }
+          } else if (param.name === '开关门时间') {
+            param.value = (2.0 + Math.random() * 3.5).toFixed(1);
+            // 检查是否超出正常范围
+            if (param.value > 3.0) {
+              system.status = '故障';
+              system.faultCode = 'D003-开关门时间过长';
+            }
+          } else if (param.name === '门机电流') {
+            const baseValue = 2.4;
+            const variation = Math.random() * 0.8 - 0.4; // -0.4到0.4的变化
+            param.value = (baseValue + variation).toFixed(1);
+          }
+        });
+      }
       
-      // 随机模拟系统故障（5%的概率）
-      if (Math.random() < 0.05) {
-        const faultTypes = {
-          'sys-001': ['E001-电机过热', 'E002-制动器异常', 'E003-轴承磨损'],
-          'sys-002': ['G001-导轨偏移', 'G002-导靴磨损严重', 'G003-润滑不足'],
-          'sys-003': ['C001-钢缆张力异常', 'C002-平衡系数偏差', 'C003-轿厢水平度超标'],
-          'sys-004': ['D001-门机电流过大', 'D002-开门时间异常', 'D003-门锁故障']
-        };
-        
-        const faults = faultTypes[system.id];
-        const randomFault = faults[Math.floor(Math.random() * faults.length)];
-        
-        // 设置故障状态
-        system.status = '故障';
-        system.faultCode = randomFault;
-      } else if (system.status === '故障' && Math.random() < 0.2) {
-        // 20%的概率修复故障
+      // 随机恢复故障
+      if (system.status === '故障' && Math.random() < 0.1) {
+        // 10%的概率修复故障
         system.status = '正常';
         system.faultCode = '无';
       }
-      
-      // 更新系统参数
-      system.parameters.forEach(param => {
-        // 根据不同参数类型设置不同的波动范围
-        let variation = 0.05; // 默认5%的波动
-        
-        // 如果系统有故障，增加参数波动
-        if (system.status === '故障') {
-          variation = 0.15; // 故障时15%的波动
-        }
-        
-        // 计算新值（在原值基础上随机波动）
-        const baseValue = parseFloat(param.value);
-        const change = baseValue * (Math.random() * variation * 2 - variation);
-        param.value = (baseValue + change).toFixed(param.unit === 'rpm' || param.unit === 'N' ? 0 : 1);
-      });
     });
   }, 3000);
+  
+  // 模拟每30秒获取一次AI分析结果
+  aiAnalysisInterval = setInterval(() => {
+    if (Math.random() > 0.7) { // 30%的概率触发AI分析
+      fetchAIAnalysis();
+    }
+  }, 30000);
+});
+
+// 清理函数
+onBeforeUnmount(() => {
+  // 停止数据采集
+  dataCollectionService.stopCollection();
+  
+  // 清除定时器
+  if (aiAnalysisInterval) {
+    clearInterval(aiAnalysisInterval);
+    aiAnalysisInterval = null;
+  }
 });
 </script>
 
@@ -236,6 +469,15 @@ onMounted(() => {
     <div class="footer panel">
       <FooterPanel />
     </div>
+    
+    <!-- AI分析通知组件 -->
+    <AIAnalysisNotification
+      v-if="aiAnalysisResult"
+      :analysisResult="aiAnalysisResult"
+      :visible="showAINotification"
+      @close="handleNotificationClose"
+      @view-details="handleViewSystemDetails"
+    />
   </div>
 </template>
 
