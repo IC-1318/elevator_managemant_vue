@@ -114,7 +114,25 @@ const dataCollectionService = new DataCollectionService({
 
 // 跳转到系统详情页
 const navigateToSystemDetail = (systemId) => {
-  router.push(`/system/${systemId}`);
+  // 根据系统ID选择对应的命名路由
+  let routeName = '';
+  switch (systemId) {
+    case 'sys-001':
+      routeName = 'traction-system';
+      break;
+    case 'sys-002':
+      routeName = 'guidance-system';
+      break;
+    case 'sys-003':
+      routeName = 'electrical-system';
+      break;
+    case 'sys-004':
+      routeName = 'door-system';
+      break;
+    default:
+      routeName = 'traction-system'; // 默认路由
+  }
+  router.push({ name: routeName });
 };
 
 // 处理异常检测回调
@@ -455,11 +473,11 @@ onBeforeUnmount(() => {
           <div class="hover-info">
             <div class="hover-param">
               <span class="param-icon">🌡️</span>
-              <span class="param-value">{{ system.temperature }}°C</span>
+              <span class="param-value-small">{{ system.temperature }}°C</span>
             </div>
             <div class="hover-param">
               <span class="param-icon">⏱️</span>
-              <span class="param-value">{{ system.runningHours }}h</span>
+              <span class="param-value-small">{{ system.runningHours }}h</span>
             </div>
           </div>
         </div>
@@ -654,7 +672,7 @@ onBeforeUnmount(() => {
 
 .system-info h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1rem;
   color: #4dabf5;
   margin-bottom: 1vh;
 }

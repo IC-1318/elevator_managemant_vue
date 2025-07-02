@@ -1,5 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
+import TractionSystem from '../views/TractionSystem.vue'
+import GuidanceSystem from '../views/GuidanceSystem.vue'
+import ElectricalSystem from '../views/ElectricalSystem.vue'
+import DoorSystem from '../views/DoorSystem.vue'
+import AbnormalData from '../views/AbnormalData.vue'
+import UserManagement from '../views/UserManagement.vue'
+import MaintenanceLog from '../views/MaintenanceLog.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -11,9 +18,45 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/system/:id',
-      name: 'system-detail',
-      component: () => import('../views/SystemDetail.vue'),
+      path: '/system/sys-001',
+      name: 'traction-system',
+      component: TractionSystem,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/system/sys-002',
+      name: 'guidance-system',
+      component: GuidanceSystem,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/system/sys-003',
+      name: 'electrical-system',
+      component: ElectricalSystem,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/system/sys-004',
+      name: 'door-system',
+      component: DoorSystem,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/abnormal-data',
+      name: 'abnormal-data',
+      component: AbnormalData,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/user-management',
+      name: 'user-management',
+      component: UserManagement,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/maintenance-log',
+      name: 'maintenance-log',
+      component: MaintenanceLog,
       meta: { requiresAuth: true }
     },
     {

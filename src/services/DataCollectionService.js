@@ -1,7 +1,5 @@
 import axios from 'axios';
-
-// API基础URL配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+import { abnormalDataApi } from '../api';
 
 /**
  * 数据采集服务
@@ -321,15 +319,24 @@ class DataCollectionService {
       console.log('准备发送异常数据:', dataToSend);
       
       try {
-        const response = await axios.post(`${API_BASE_URL}/anomalies`, {
-          elevatorId: this.elevatorId,
-          anomalies: dataToSend
-        });
-        console.log(`成功发送 ${dataToSend.length} 条异常数据`, response.data);
+        // 将异常数据格式化为后端API接受的格式
+        for (const anomaly of dataToSend) {
+          // 根据不同系统类型构造异常数据对象
+          const abnormalData = {
+            systemName: anomaly.systemName,
+            systemSqName: anomaly.type === 'parameter' ? anomaly.paramName : anomaly.faultCode || '未知',
+            eName: this.elevatorId || '电梯',
+            eData: anomaly.type === 'parameter' ? anomaly.paramValue : anomaly.faultCode || 0
+          };
+          
+          // 调用API发送异常数据
+          const response = await abnormalDataApi.addAbnormalData(abnormalData);
+          console.log(`成功发送异常数据:`, response.data);
+        }
       } catch (apiError) {
         console.error('API调用失败，但不影响应用继续运行:', apiError);
         // 模拟成功响应，不将数据放回队列，避免队列无限增长
-        console.log('模拟API调用成功，丢弃异常数据');
+        console.log('API调用失败，丢弃异常数据');
       }
     } catch (error) {
       console.error('发送异常数据过程中发生严重错误:', error);
@@ -342,24 +349,41 @@ class DataCollectionService {
    * @param {string} systemId - 系统ID（可选，不传则获取所有系统）
    * @returns {Promise<Object>} AI分析结果
    */
-  async getAIAnalysis(systemId = null) {
+  async getAIAnalysis(systemName = null) {
     try {
-      const url = systemId 
-        ? `${API_BASE_URL}/ai-analysis/${this.elevatorId}/${systemId}` 
-        : `${API_BASE_URL}/ai-analysis/${this.elevatorId}`;
-      
-      console.log('尝试获取AI分析结果:', url);
+      console.log('尝试获取AI分析结果:', systemName);
       
       try {
-        const response = await axios.get(url);
-        return response.data;
+        // 构造一个模拟的异常数据用于AI分析
+        const mockData = {
+          systemName: systemName || '曳引系统',
+          systemSqName: '曳引电动机',
+          eName: this.elevatorId || '电梯',
+          eData: 153
+        };
+        
+        // 调用API发送数据进行AI分析
+        const response = await abnormalDataApi.sendDataToAI(mockData);
+        return {
+          id: 'ai-analysis-' + Date.now(),
+          timestamp: Date.now(),
+          systemName: mockData.systemName,
+          severity: 'warning',
+          systemInfo: {
+            name: mockData.systemName,
+            status: '异常'
+          },
+          summary: response.data.message,
+          details: [response.data.message],
+          recommendations: ['请根据AI分析结果进行相应处理']
+        };
       } catch (apiError) {
         console.error('获取AI分析结果API调用失败:', apiError);
         // 返回模拟数据，避免前端出错
         return {
           id: 'mock-ai-analysis',
           timestamp: Date.now(),
-          systemId: systemId || 'sys-001',
+          systemName: systemName || '曳引系统',
           severity: 'warning',
           systemInfo: {
             name: '模拟系统',
