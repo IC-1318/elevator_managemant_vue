@@ -185,6 +185,8 @@ const isDetailView = computed(() => {
   gap: 15px;
   height: 100%;
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .system-header {
@@ -237,7 +239,7 @@ const isDetailView = computed(() => {
 }
 
 .system-card {
-  background: rgba(7, 19, 39, 0.5);
+  background: rgba(7, 19, 39, 0.3);
   border-radius: 8px;
   padding: 15px;
   border: 1px solid rgba(33, 150, 243, 0.2);
@@ -246,65 +248,64 @@ const isDetailView = computed(() => {
   gap: 15px;
   transition: all 0.3s ease;
   cursor: pointer;
+  backdrop-filter: none;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
 }
 
 .system-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(33, 150, 243, 0.2);
+  background: rgba(7, 19, 39, 0.4);
+  box-shadow: 0 0 15px rgba(33, 150, 243, 0.3);
+  transform: translateY(-2px);
 }
 
 .system-card.has-fault {
   border-color: rgba(231, 76, 60, 0.5);
-  box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+  box-shadow: 0 0 15px rgba(231, 76, 60, 0.2);
 }
 
 .system-title {
-  font-size: 1rem;
-  color: #4dabf5;
+  font-size: 1.1rem;
   font-weight: 600;
-  border-bottom: 1px solid rgba(33, 150, 243, 0.2);
-  padding-bottom: 5px;
+  color: #fff;
 }
 
 .system-model-container {
   height: 120px;
-  background: rgba(13, 31, 61, 0.7);
-  border-radius: 6px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .model-placeholder {
+  height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  background: rgba(7, 19, 39, 0.2);
+  border-radius: 4px;
+  border: 1px dashed rgba(33, 150, 243, 0.5);
 }
 
 .placeholder-icon {
   font-size: 2rem;
-}
-
-.placeholder-icon.large {
-  font-size: 4rem;
+  margin-bottom: 10px;
 }
 
 .placeholder-text {
   font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .system-info {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
 .info-item {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .info-label {
@@ -317,21 +318,26 @@ const isDetailView = computed(() => {
   color: #fff;
 }
 
+.has-fault {
+  color: #e74c3c;
+}
+
 .view-details-button {
-  text-align: center;
-  padding: 8px;
   background: rgba(33, 150, 243, 0.2);
-  border-radius: 4px;
+  border: 1px solid rgba(33, 150, 243, 0.5);
   color: #4dabf5;
+  padding: 8px;
+  border-radius: 4px;
+  text-align: center;
   font-size: 0.9rem;
   transition: all 0.3s ease;
 }
 
-.system-card:hover .view-details-button {
-  background: rgba(33, 150, 243, 0.4);
+.view-details-button:hover {
+  background: rgba(33, 150, 243, 0.3);
 }
 
-/* 系统详情视图样式 */
+/* 系统详情视图 */
 .system-detail-view {
   display: flex;
   flex-direction: column;
@@ -340,16 +346,12 @@ const isDetailView = computed(() => {
 }
 
 .detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   border-bottom: 1px solid rgba(33, 150, 243, 0.3);
   padding-bottom: 10px;
 }
 
 .detail-title {
   font-size: 1.2rem;
-  color: #4dabf5;
   margin: 0;
   display: flex;
   align-items: center;
@@ -359,7 +361,7 @@ const isDetailView = computed(() => {
 .detail-title span {
   font-size: 0.8rem;
   padding: 3px 8px;
-  border-radius: 20px;
+  border-radius: 15px;
 }
 
 .detail-content {
@@ -371,11 +373,17 @@ const isDetailView = computed(() => {
 
 .detail-model-container {
   height: 200px;
-  background: rgba(13, 31, 61, 0.7);
+  background: rgba(7, 19, 39, 0.2);
   border-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  overflow: hidden;
+}
+
+.model-placeholder.large {
+  height: 100%;
+}
+
+.placeholder-icon.large {
+  font-size: 4rem;
 }
 
 .detail-info-panel {
@@ -385,16 +393,17 @@ const isDetailView = computed(() => {
 }
 
 .detail-section {
-  background: rgba(7, 19, 39, 0.5);
+  background: rgba(7, 19, 39, 0.2);
   border-radius: 8px;
   padding: 15px;
   border: 1px solid rgba(33, 150, 243, 0.2);
+  backdrop-filter: none;
 }
 
 .section-subtitle {
   font-size: 1rem;
+  margin: 0 0 15px 0;
   color: #4dabf5;
-  margin: 0 0 10px 0;
   border-bottom: 1px solid rgba(33, 150, 243, 0.2);
   padding-bottom: 5px;
 }
@@ -429,11 +438,8 @@ const isDetailView = computed(() => {
 
 .detail-param-item {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  background: rgba(13, 31, 61, 0.5);
-  padding: 10px;
-  border-radius: 6px;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .detail-param-label {
@@ -442,64 +448,20 @@ const isDetailView = computed(() => {
 }
 
 .detail-param-value {
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: #fff;
 }
 
 .maintenance-tips {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 .maintenance-tips ul {
-  margin-top: 10px;
   padding-left: 20px;
 }
 
 .maintenance-tips li {
   margin-bottom: 5px;
-}
-
-.has-fault {
-  color: #e74c3c;
-}
-
-.has-fault {
-  color: #e74c3c;
-}
-
-.system-details {
-  background: rgba(13, 31, 61, 0.4);
-  border-radius: 6px;
-  padding: 10px;
-}
-
-.details-title {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 10px;
-}
-
-.details-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.param-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.param-label {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.param-value {
-  font-size: 0.8rem;
-  color: #fff;
 }
 </style>

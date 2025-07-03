@@ -100,7 +100,7 @@ const goToHome = () => {
             <div class="action-icon">📊</div>
             <div class="action-text">系统报表</div>
           </div>
-          <div class="action-card">
+          <div class="action-card" @click="() => router.push('/user-management')">
             <div class="action-icon">👥</div>
             <div class="action-text">用户管理</div>
           </div>
@@ -112,11 +112,11 @@ const goToHome = () => {
             <div class="action-icon">🔔</div>
             <div class="action-text">通知中心</div>
           </div>
-          <div class="action-card">
+          <div class="action-card" @click="() => router.push('/maintenance-log')">
             <div class="action-icon">📝</div>
             <div class="action-text">维护记录</div>
           </div>
-          <div class="action-card">
+          <div class="action-card"  @click="() => router.push('/abnormal-data')">
             <div class="action-icon">⚠️</div>
             <div class="action-text">报警管理</div>
           </div>

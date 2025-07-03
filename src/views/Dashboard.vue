@@ -29,7 +29,7 @@ const elevatorData = ref({
   operatingHours: 5231,
   energyConsumption: 45.2,
   alerts: [],
-  floorCount: 20,
+  floorCount: 15,
   // 四大系统监控数据
   systems: [
     {
@@ -437,10 +437,6 @@ onBeforeUnmount(() => {
     
     <div class="main panel">
       <div class="panel-header">
-        <h2 class="panel-title tech-text">电梯可视化</h2>
-        <div class="status-badge" :class="elevatorData.status === '运行中' ? 'status-running' : 'status-stopped'">
-          {{ elevatorData.status }}
-        </div>
         <div class="tech-decoration"></div>
       </div>
       <ElevatorVisualizer :elevatorData="elevatorData" />
@@ -563,8 +559,13 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 
+.footer.panel {
+  border: none;
+  box-shadow: none;
+}
+
 .panel {
-  background: rgba(16, 24, 48, 0.9);
+  background: transparent;
   border: 1px solid rgba(64, 128, 255, 0.3);
   border-radius: 12px;
   box-shadow: 0 0 20px rgba(0, 100, 255, 0.15),
@@ -632,7 +633,7 @@ onBeforeUnmount(() => {
 }
 
 .system-card {
-  background: rgba(7, 19, 39, 0.7);
+  background: rgba(7, 19, 39, 0.3);
   border: 1px solid rgba(64, 128, 255, 0.2);
   border-radius: 10px;
   padding: 1.5vh;

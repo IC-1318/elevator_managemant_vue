@@ -1,26 +1,64 @@
-<script setup>
-import { RouterView } from 'vue-router';
+<script>
+import { defineComponent } from 'vue';
+import { useRouter } from 'vue-router';
+import TechGridBackground from './components/TechGridBackground.vue';
+
+export default defineComponent({
+  name: 'App',
+  components: {
+    TechGridBackground
+  },
+  setup() {
+    const router = useRouter();
+    return {
+      router
+    };
+  }
+});
 </script>
 
 <template>
-  <RouterView />
+  <div class="app-container">
+    <TechGridBackground />
+    <router-view />
+  </div>
 </template>
 
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
 :root {
   --primary-color: #4CAF50;
   --error-color: #e74c3c;
-  --background-color: #121212;
-  --surface-color: #1e1e1e;
+  --background-color: transparent;
+  --surface-color: rgba(20, 30, 60, 0.3);
   --text-color: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.7);
-  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color: rgba(30, 144, 255, 0.5);
 }
 
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  background-color: var(--background-color);
+  background-color: transparent;
   color: var(--text-color);
 }
 
@@ -29,6 +67,8 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   overflow: hidden;
+  backdrop-filter: blur(1px);
+  box-shadow: 0 0 15px rgba(30, 144, 255, 0.3);
 }
 
 .panel-header {
