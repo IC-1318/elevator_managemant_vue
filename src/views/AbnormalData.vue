@@ -66,8 +66,8 @@ export default {
       systemOptions: [
         { value: '曳引系统', label: '曳引系统' },
         { value: '门系统', label: '门系统' },
-        { value: '控制系统', label: '控制系统' },
-        { value: '安全系统', label: '安全系统' }
+        { value: '电气控制系统', label: '电气控制系统' },
+        { value: '导向系统', label: '导向系统' }
       ],
       tableData: [],
       loading: false,
