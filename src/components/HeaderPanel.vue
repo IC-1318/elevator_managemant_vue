@@ -1,9 +1,63 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const showAdminProfile = ref(false);
+const currentTime = ref(new Date().toLocaleTimeString());
+const currentDate = ref(new Date().toLocaleDateString('zh-CN', {year: 'numeric', month: 'numeric', day: 'numeric'}));
+
+let timeInterval;
+
+// 更新时间函数
+const updateTime = () => {
+  const now = new Date();
+  currentTime.value = now.toLocaleTimeString();
+  currentDate.value = now.toLocaleDateString('zh-CN', {year: 'numeric', month: 'numeric', day: 'numeric'});
+};
+
+onMounted(() => {
+  // 每秒更新一次时间
+  timeInterval = setInterval(updateTime, 1000);
+  
+  // 初始化SVG路径动画
+  initCircuitAnimation();
+});
+
+onBeforeUnmount(() => {
+  // 清除定时器
+  if (timeInterval) {
+    clearInterval(timeInterval);
+  }
+});
+
+// 初始化SVG电路动画
+const initCircuitAnimation = () => {
+  // 获取所有的电路路径
+  const paths = document.querySelectorAll('.circuit-path');
+  
+  // 为每个路径设置动画
+  paths.forEach(path => {
+    const length = path.getTotalLength();
+    
+    // 设置初始状态
+    path.style.strokeDasharray = length;
+    path.style.strokeDashoffset = length;
+    
+    // 触发布局计算
+    path.getBoundingClientRect();
+    
+    // 设置动画
+    path.style.transition = `stroke-dashoffset ${2 + Math.random() * 3}s ease-in-out ${Math.random() * 2}s`;
+    path.style.strokeDashoffset = '0';
+  });
+  
+  // 为节点设置脉冲动画
+  const nodes = document.querySelectorAll('.circuit-node');
+  nodes.forEach(node => {
+    node.style.animation = `pulse ${1.5 + Math.random() * 2}s infinite alternate ${Math.random() * 1}s`;
+  });
+};
 
 const props = defineProps({
   elevatorId: {
@@ -33,9 +87,6 @@ const handleLogout = () => {
   router.push('/login');
 };
 
-// 获取当前时间
-const currentTime = new Date().toLocaleTimeString();
-
 // 跳转到管理员页面
 const goToAdminPage = () => {
   router.push('/admin');
@@ -43,140 +94,471 @@ const goToAdminPage = () => {
 </script>
 
 <template>
-  <div class="header-panel panel">
-    <div class="header-left">
-      <h1 class="system-title tech-text glow">电梯数字孪生驾驶舱</h1>
-      <div class="elevator-id">ID: {{ elevatorId }}</div>
+  <div class="header-container">
+    <!-- 左侧电路图SVG -->
+    <div class="circuit-decoration left">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+        <!-- 水平主干线 -->
+        <path class="circuit-path main-line" d="M10,30 L180,30" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线1 -->
+        <path class="circuit-path" d="M40,30 L40,10 L60,10" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线2 -->
+        <path class="circuit-path" d="M80,30 L80,45 L120,45" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线3 -->
+        <path class="circuit-path" d="M140,30 L140,15 L170,15" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 对角线 -->
+        <path class="circuit-path" d="M100,30 L120,10" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 复杂路径1 - 电路板形状 -->
+        <path class="circuit-path complex" d="M20,20 Q25,15 30,20 T40,20 L50,20 Q55,20 55,15 T60,10 L70,10" 
+              stroke="#1E90FF" stroke-width="1" fill="none"/>
+        
+        <!-- 复杂路径2 - 电路板形状 -->
+        <path class="circuit-path complex" d="M110,45 Q120,55 130,45 T150,40 L160,40" 
+              stroke="#1E90FF" stroke-width="1" fill="none"/>
+        
+        <!-- 流动效果路径 - 仅水平方向 -->
+        <path class="circuit-flow" d="M10,30 L180,30" stroke="url(#flow-gradient-left)" stroke-width="2" fill="none"/>
+        
+        <!-- 数据包动画 - 仅水平方向 -->
+        <circle class="data-packet" cx="30" cy="30" r="2" fill="#ffffff"/>
+        <circle class="data-packet" cx="90" cy="30" r="2" fill="#ffffff"/>
+        <circle class="data-packet" cx="150" cy="30" r="2" fill="#ffffff"/>
+        
+        <!-- 旋转装饰元素 -->
+        <g class="rotating-element" transform="translate(60, 10)">
+          <rect x="-3" y="-3" width="6" height="6" fill="none" stroke="#a0cfff" stroke-width="1" rx="1"/>
+        </g>
+        <g class="rotating-element" transform="translate(120, 45)">
+          <rect x="-3" y="-3" width="6" height="6" fill="none" stroke="#a0cfff" stroke-width="1" rx="1"/>
+        </g>
+        
+        <!-- 脉冲波纹 - 仅水平方向节点 -->
+        <circle class="pulse-wave" cx="40" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        <circle class="pulse-wave" cx="100" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        <circle class="pulse-wave" cx="140" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        
+        <!-- 装饰元素 - 小方块 -->
+        <rect class="circuit-element" x="60" y="8" width="4" height="4" fill="#1E90FF" rx="1"/>
+        <rect class="circuit-element" x="120" y="43" width="4" height="4" fill="#1E90FF" rx="1"/>
+        <rect class="circuit-element" x="170" y="13" width="4" height="4" fill="#1E90FF" rx="1"/>
+        
+        <!-- 节点 -->
+        <circle class="circuit-node" cx="40" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="80" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="100" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="140" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="60" cy="10" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="120" cy="45" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="120" cy="10" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="170" cy="15" r="3" fill="#1E90FF"/>
+        
+        <!-- 闪烁节点 -->
+        <circle class="circuit-node blink" cx="20" cy="30" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="160" cy="30" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="70" cy="10" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="160" cy="40" r="2" fill="#64B5F6"/>
+        
+        <!-- 渐变定义 - 从左向右流动 -->
+        <defs>
+          <linearGradient id="flow-gradient-left" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="rgba(30, 144, 255, 0)"/>
+            <stop offset="50%" stop-color="rgba(30, 144, 255, 0.8)"/>
+            <stop offset="100%" stop-color="rgba(30, 144, 255, 0)"/>
+            <animate attributeName="x1" from="-100%" to="100%" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="x2" from="0%" to="200%" dur="3s" repeatCount="indefinite"/>
+          </linearGradient>
+          
+          <!-- 颜色变化动画 -->
+          <linearGradient id="color-change-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#1E90FF">
+              <animate attributeName="stop-color" values="#1E90FF; #ffffff; #1E90FF" dur="5s" repeatCount="indefinite"/>
+            </stop>
+            <stop offset="100%" stop-color="#64B5F6">
+              <animate attributeName="stop-color" values="#64B5F6; #a0cfff; #64B5F6" dur="5s" repeatCount="indefinite"/>
+            </stop>
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
     
-    <div class="header-right">
-      <div class="time-display tech-text">{{ currentTime }}</div>
-      <div class="status-indicator">
-        <span class="status-dot pulse"></span>
-        <span class="status-text">系统在线</span>
-      </div>
-      
-      <!-- 显眼的管理员头像 -->
-      <div class="admin-button" @click="goToAdminPage">
-        <div class="admin-avatar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
+    <div class="header-panel">
+      <div class="system-title-container">
+        <h1 class="system-title">电梯数字孪生驾驶舱</h1>
+        <div class="subtitle">Elevator Digital Twin Cockpit</div>
+        <div class="datetime-display">
+          <div class="time-display tech-text">{{ currentTime }}</div>
         </div>
-        <span class="admin-text">管理员</span>
       </div>
+    </div>
+    
+    <!-- 右侧电路图SVG -->
+    <div class="circuit-decoration right">
+      <svg viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+        <!-- 水平主干线 -->
+        <path class="circuit-path main-line" d="M10,30 L180,30" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线1 -->
+        <path class="circuit-path" d="M40,30 L40,10 L60,10" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线2 -->
+        <path class="circuit-path" d="M80,30 L80,45 L120,45" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 垂直连接线3 -->
+        <path class="circuit-path" d="M140,30 L140,15 L170,15" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 对角线 -->
+        <path class="circuit-path" d="M100,30 L120,10" stroke="#1E90FF" stroke-width="1.5" fill="none"/>
+        
+        <!-- 复杂路径1 - 电路板形状 -->
+        <path class="circuit-path complex" d="M20,20 Q25,15 30,20 T40,20 L50,20 Q55,20 55,15 T60,10 L70,10" 
+              stroke="#1E90FF" stroke-width="1" fill="none"/>
+        
+        <!-- 复杂路径2 - 电路板形状 -->
+        <path class="circuit-path complex" d="M110,45 Q120,55 130,45 T150,40 L160,40" 
+              stroke="#1E90FF" stroke-width="1" fill="none"/>
+        
+        <!-- 流动效果路径 - 仅水平方向 -->
+        <path class="circuit-flow" d="M10,30 L180,30" stroke="url(#flow-gradient-right)" stroke-width="2" fill="none"/>
+        
+        <!-- 数据包动画 - 仅水平方向 -->
+        <circle class="data-packet reverse" cx="30" cy="30" r="2" fill="#ffffff"/>
+        <circle class="data-packet reverse" cx="90" cy="30" r="2" fill="#ffffff"/>
+        <circle class="data-packet reverse" cx="150" cy="30" r="2" fill="#ffffff"/>
+        
+        <!-- 旋转装饰元素 -->
+        <g class="rotating-element reverse" transform="translate(60, 10)">
+          <rect x="-3" y="-3" width="6" height="6" fill="none" stroke="#a0cfff" stroke-width="1" rx="1"/>
+        </g>
+        <g class="rotating-element reverse" transform="translate(120, 45)">
+          <rect x="-3" y="-3" width="6" height="6" fill="none" stroke="#a0cfff" stroke-width="1" rx="1"/>
+        </g>
+        
+        <!-- 脉冲波纹 - 仅水平方向节点 -->
+        <circle class="pulse-wave" cx="40" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        <circle class="pulse-wave" cx="100" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        <circle class="pulse-wave" cx="140" cy="30" r="3" fill="none" stroke="#1E90FF" stroke-width="0.5"/>
+        
+        <!-- 装饰元素 - 小方块 -->
+        <rect class="circuit-element" x="60" y="8" width="4" height="4" fill="#1E90FF" rx="1"/>
+        <rect class="circuit-element" x="120" y="43" width="4" height="4" fill="#1E90FF" rx="1"/>
+        <rect class="circuit-element" x="170" y="13" width="4" height="4" fill="#1E90FF" rx="1"/>
+        
+        <!-- 节点 -->
+        <circle class="circuit-node" cx="40" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="80" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="100" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="140" cy="30" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="60" cy="10" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="120" cy="45" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="120" cy="10" r="3" fill="#1E90FF"/>
+        <circle class="circuit-node" cx="170" cy="15" r="3" fill="#1E90FF"/>
+        
+        <!-- 闪烁节点 -->
+        <circle class="circuit-node blink" cx="20" cy="30" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="160" cy="30" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="70" cy="10" r="2" fill="#64B5F6"/>
+        <circle class="circuit-node blink" cx="160" cy="40" r="2" fill="#64B5F6"/>
+        
+        <!-- 渐变定义 - 从右向左流动 -->
+        <defs>
+          <linearGradient id="flow-gradient-right" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="rgba(30, 144, 255, 0)"/>
+            <stop offset="50%" stop-color="rgba(30, 144, 255, 0.8)"/>
+            <stop offset="100%" stop-color="rgba(30, 144, 255, 0)"/>
+            <animate attributeName="x1" from="100%" to="-100%" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="x2" from="200%" to="0%" dur="3s" repeatCount="indefinite"/>
+          </linearGradient>
+          
+          <!-- 颜色变化动画 -->
+          <linearGradient id="color-change-gradient-right" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#1E90FF">
+              <animate attributeName="stop-color" values="#1E90FF; #ffffff; #1E90FF" dur="5s" repeatCount="indefinite"/>
+            </stop>
+            <stop offset="100%" stop-color="#64B5F6">
+              <animate attributeName="stop-color" values="#64B5F6; #a0cfff; #64B5F6" dur="5s" repeatCount="indefinite"/>
+            </stop>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    
+    <div class="logout-icon" @click="handleLogout">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+    </div>
+    
+    <div class="admin-icon" @click="goToAdminPage">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
     </div>
   </div>
 </template>
 
 <style scoped>
-.header-panel {
+.header-container {
+  position: relative;
+  height: 3.5rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 0 20px;
+  width: 100%;
 }
 
-.header-left {
+.header-panel {
+  background: transparent;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  border-bottom: 1px solid rgba(30, 144, 255, 0.5);
+  display: inline-flex;
+  justify-content: center;
+  width: auto;
+  padding: 6px 30px 12px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0% 100%);
+}
+
+.system-title-container {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 0 10px;
 }
 
 .system-title {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   margin: 0;
-  color: #4dabf5;
+  color: #fff;
+  text-shadow: 0 0 5px rgba(30, 144, 255, 0.7), 0 0 10px rgba(30, 144, 255, 0.5);
+  font-weight: 600;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: #64b5f6;
   letter-spacing: 1px;
+  margin-top: 2px;
+  text-transform: uppercase;
+  font-family: 'Arial', sans-serif;
 }
 
-.elevator-id {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  position: relative;
+.datetime-display {
+  margin-top: 2px;
+  text-align: center;
 }
 
 .time-display {
-  font-size: 1.2rem;
-  color: #2196f3;
+  font-size: 0.85rem;
+  color: #1E90FF;
+  font-weight: 500;
 }
 
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 电路装饰效果 */
+.circuit-decoration {
+  position: absolute;
+  width: 250px;
+  height: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 99;
 }
 
-.status-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
+.circuit-decoration.left {
+  right: calc(50% + 150px);
+  transform: translateY(-50%) scaleX(-1); 
+}
+
+.circuit-decoration.right {
+  left: calc(50% + 150px);
+  transform: translateY(-50%);
+}
+
+/* 电路路径样式 */
+.circuit-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.circuit-path.main-line {
+  stroke-width: 2;
+}
+
+.circuit-path.complex {
+  stroke-opacity: 0.7;
+}
+
+/* 电路流动效果 */
+.circuit-flow {
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+/* 数据包动画 */
+.data-packet {
+  animation: moveRight 4s infinite linear;
+  filter: drop-shadow(0 0 3px #ffffff);
+}
+
+.data-packet.reverse {
+  animation: moveLeft 4s infinite linear;
+}
+
+@keyframes moveRight {
+  0% { transform: translateX(-10px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(200px); opacity: 0; }
+}
+
+@keyframes moveLeft {
+  0% { transform: translateX(200px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(-10px); opacity: 0; }
+}
+
+/* 旋转元素动画 */
+.rotating-element {
+  animation: rotate 4s infinite linear;
+  transform-origin: center;
+}
+
+.rotating-element.reverse {
+  animation: rotateReverse 4s infinite linear;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rotateReverse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+/* 脉冲波纹效果 */
+.pulse-wave {
+  animation: wave 3s infinite ease-out;
+  transform-origin: center;
+  opacity: 0;
+}
+
+@keyframes wave {
+  0% { 
+    transform: scale(0.5); 
+    opacity: 0.8; 
+    stroke: #1E90FF;
+  }
+  100% { 
+    transform: scale(3); 
+    opacity: 0; 
+    stroke: #ffffff;
+  }
+}
+
+/* 电路元素动画 */
+.circuit-element {
+  animation: glow 2s infinite alternate;
+}
+
+/* 节点动画 */
+@keyframes pulse {
+  0% {
+    opacity: 0.4;
+    r: 2;
+    filter: drop-shadow(0 0 2px #1E90FF);
+  }
+  100% {
+    opacity: 1;
+    r: 3;
+    filter: drop-shadow(0 0 5px #1E90FF) drop-shadow(0 0 8px rgba(30, 144, 255, 0.7));
+  }
+}
+
+/* 闪烁节点动画 */
+.circuit-node.blink {
+  animation: blink 1.5s infinite alternate;
+}
+
+@keyframes blink {
+  0%, 80% {
+    opacity: 0.2;
+    filter: drop-shadow(0 0 1px #64B5F6);
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px #64B5F6) drop-shadow(0 0 10px rgba(100, 181, 246, 0.8));
+  }
+}
+
+/* 装饰元素发光效果 */
+@keyframes glow {
+  0% {
+    filter: drop-shadow(0 0 1px #1E90FF);
+  }
+  100% {
+    filter: drop-shadow(0 0 3px #1E90FF) drop-shadow(0 0 5px rgba(30, 144, 255, 0.7));
+  }
+}
+
+.admin-icon, .logout-icon {
+  width: 55px;
+  height: 55px;
   border-radius: 50%;
-  background-color: #4caf50;
-  box-shadow: 0 0 5px #4caf50;
-}
-
-.status-text {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* 显眼的管理员头像按钮 */
-.admin-button {
-  display: flex;
-  align-items: center;
-  background: linear-gradient(135deg, #4CAF50, #2ecc71);
-  border-radius: 20px;
-  padding: 5px 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.admin-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.7);
-}
-
-.admin-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  margin-right: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(25, 118, 210, 0.8);
+  transition: all 0.3s;
+  position: absolute;
+}
+
+.admin-icon {
+  background: linear-gradient(135deg, #1976D2, #42A5F5);
+  right: 25px;
+}
+
+.logout-icon {
+  background: linear-gradient(135deg, #0D47A1, #1565C0);
+  left: 25px;
+}
+
+.admin-icon svg, .logout-icon svg {
+  width: 28px;
+  height: 28px;
   color: white;
 }
 
-.admin-text {
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+.admin-icon:hover, .logout-icon:hover {
+  box-shadow: 0 0 15px rgba(25, 118, 210, 0.9);
+  transform: translateY(-3px);
 }
 
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 5px rgba(76, 175, 80, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-  }
+.admin-icon:hover {
+  background: linear-gradient(135deg, #1976D2, #29B6F6);
 }
 
-.pulse {
-  animation: pulse 2s infinite;
+.logout-icon:hover {
+  background: linear-gradient(135deg, #1565C0, #1E88E5);
+}
+
+.tech-text {
+  font-family: 'Consolas', monospace;
 }
 </style>

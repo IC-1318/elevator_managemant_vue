@@ -119,13 +119,16 @@ const toggleDoor = () => {
   gap: 20px;
   height: 100%;
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .control-section {
-  background: rgba(7, 19, 39, 0.5);
+  background: transparent; /* 完全移除背景色 */
   border-radius: 8px;
   padding: 15px;
-  border: 1px solid rgba(33, 150, 243, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
 }
 
 .section-title {
@@ -145,7 +148,7 @@ const toggleDoor = () => {
 }
 
 .floor-button {
-  background: rgba(13, 31, 61, 0.7);
+  background: rgba(13, 31, 61, 0.5);
   border: 1px solid #1e88e5;
   color: #fff;
   border-radius: 4px;
@@ -178,7 +181,7 @@ const toggleDoor = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(13, 31, 61, 0.7);
+  background: rgba(13, 31, 61, 0.5);
   border: 1px solid #1e88e5;
   color: #fff;
   border-radius: 4px;

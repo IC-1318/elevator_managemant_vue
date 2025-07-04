@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import HeaderPanel from '../components/HeaderPanel.vue';
 import ParameterChart from '../components/ParameterChart.vue';
 import MaintenanceChart from '../components/MaintenanceChart.vue';
 import SystemDashboard from '../components/SystemDashboard.vue';
@@ -313,30 +312,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="system-detail" v-if="systemData">
-    <HeaderPanel :elevatorId="systemId" />
-    
-    <div class="system-content">
-      <!-- 3D模型区域 - 预留位置 -->
-      <div class="model-3d-container panel">
-        <h2 class="section-title">3D模型视图</h2>
-        <div class="model-3d-placeholder">
-          <div class="model-loading">3D模型加载中...</div>
-        </div>
-      </div>
-      
-      <header class="detail-header panel">
-        <div class="system-title">
-          <span class="system-icon">{{ systemData.icon }}</span>
-          <h1>{{ systemData.name }}详情</h1>
-        </div>
+  <div class="system-view">
+    <div v-if="systemData" class="system-content">
+      <header class="system-header panel">
         <div class="system-info">
-          <p>{{ systemData.description }}</p>
-          <div class="info-grid">
-            <div class="info-item">{{ systemData.model }}</div>
-            <div class="info-item">{{ systemData.manufacturer }}</div>
-            <div class="info-item">{{ systemData.installDate }}</div>
-            <div class="info-item">{{ systemData.maintenanceCycle }}</div>
+          <div class="system-title-wrapper">
+            <h1 class="system-title">{{ systemData.name }}</h1>
+            <div class="system-icon">{{ systemData.icon }}</div>
+          </div>
+          <p class="system-description">{{ systemData.description }}</p>
+          <div class="system-meta">
+            <div class="meta-item">{{ systemData.model }}</div>
+            <div class="meta-item">{{ systemData.manufacturer }}</div>
+            <div class="meta-item">{{ systemData.installDate }}</div>
           </div>
         </div>
       </header>
@@ -371,62 +359,62 @@ onBeforeUnmount(() => {
               />
             </div>
           </div>
-            </div>
-          </div>
-          
+        </div>
+      </div>
+      
       <!-- 曳引机参数 - 在一个框内水平排列 -->
       <div class="traction-parameters panel">
-                <h2 class="section-title">曳引机参数</h2>
+        <h2 class="section-title">曳引机参数</h2>
         <div class="parameter-row">
           <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '曳引机')" 
                :key="index" 
-               class="parameter-gauge-item">
-            <h3 class="param-title">{{ param.name }}</h3>
+               class="parameter-item">
+            <div class="param-title">{{ param.name }}</div>
             <div class="param-value" :style="{color: getStatusColor(param)}">{{ param.value }}{{ param.unit }}</div>
             <div class="param-gauge">
-                <ParameterChart 
-                  chartType="gauge"
-                  paramGroup="曳引机" 
+              <ParameterChart 
+                chartType="gauge"
+                paramGroup="曳引机" 
                 :parameters="[param]" 
-                />
-              </div>
+              />
+            </div>
             <div class="param-range">正常范围: {{ param.normal }}</div>
           </div>
         </div>
-            </div>
-            
+      </div>
+      
       <!-- 其他参数模块 -->
       <div class="other-parameters-grid">
-            <!-- 曳引钢丝绳参数模块 -->
-            <div class="panel parameter-module">
-              <div class="module-header">
-                <h2 class="section-title">钢丝绳参数</h2>
-                <div class="module-icon">🔗</div>
-              </div>
-              <div class="parameter-content">
-                <ParameterChart 
-                  chartType="bar"
-                  paramGroup="曳引钢丝绳" 
-                  :parameters="systemData.parameters.filter(p => p.group === '曳引钢丝绳')" 
-                />
-              </div>
-            </div>
-            
-            <!-- 制动器参数模块 -->
-            <div class="panel parameter-module">
-              <div class="module-header">
-                <h2 class="section-title">制动器参数</h2>
-                <div class="module-icon">🛑</div>
-              </div>
-              <div class="parameter-content">
-                <ParameterChart 
-                  chartType="radar"
-                  paramGroup="制动器" 
-                  :parameters="systemData.parameters.filter(p => p.group === '制动器')" 
-                />
-              </div>
-            </div>
+        <!-- 曳引钢丝绳参数模块 -->
+        <div class="panel parameter-module">
+          <div class="module-header">
+            <h2 class="section-title">钢丝绳参数</h2>
+            <div class="module-icon">🔗</div>
           </div>
+          <div class="parameter-content">
+            <ParameterChart 
+              chartType="bar"
+              paramGroup="曳引钢丝绳" 
+              :parameters="systemData.parameters.filter(p => p.group === '曳引钢丝绳')" 
+            />
+          </div>
+        </div>
+        
+        <!-- 制动器参数模块 -->
+        <div class="panel parameter-module">
+          <div class="module-header">
+            <h2 class="section-title">制动器参数</h2>
+            <div class="module-icon">🛑</div>
+          </div>
+          <div class="parameter-content">
+            <ParameterChart 
+              chartType="radar"
+              paramGroup="制动器" 
+              :parameters="systemData.parameters.filter(p => p.group === '制动器')" 
+            />
+          </div>
+        </div>
+      </div>
       
       <!-- 维护记录放在最下面 -->
       <div class="maintenance-section panel">
@@ -440,11 +428,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.system-detail {
+.system-view {
   padding: 0;
   height: 100%;
   overflow-y: auto;
-  background: #0c1220;
+  background: transparent;
   position: relative;
   min-height: 100vh;
   box-sizing: border-box;
