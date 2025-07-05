@@ -50,6 +50,12 @@ const isMoving = computed(() => {
   return props.elevatorData.currentFloor !== props.elevatorData.targetFloor;
 });
 
+// 电梯运动方向
+const elevatorDirection = computed(() => {
+  if (!isMoving.value) return 0; // 静止
+  return props.elevatorData.targetFloor > props.elevatorData.currentFloor ? 1 : -1; // 1表示向上，-1表示向下
+});
+
 // 初始化Three.js场景
 const initThreeJS = () => {
   try {
@@ -209,11 +215,9 @@ const createElevatorShaft = () => {
   // 前墙 (透明度更高，可以看到电梯)
   const frontWall = createWall(SHAFT_WIDTH, SHAFT_HEIGHT, wallThickness, 0, SHAFT_HEIGHT/2, SHAFT_DEPTH/2);
   frontWall.material.opacity = 0.1;
-  
-  // 创建底座
   const baseGeometry = new THREE.BoxGeometry(SHAFT_WIDTH + 0.5, 0.5, SHAFT_DEPTH + 0.5);
   const baseMaterial = new THREE.MeshStandardMaterial({
-    color: 0x555555,  // 更亮的灰色
+    color: 0x555555, 
     metalness: 0.7,
     roughness: 0.3,
     emissive: 0x222222,
@@ -222,18 +226,13 @@ const createElevatorShaft = () => {
   const base = new THREE.Mesh(baseGeometry, baseMaterial);
   base.position.y = 0;
   scene.add(base);
-  
-  // 添加导轨
   const railGeometry = new THREE.BoxGeometry(0.1, SHAFT_HEIGHT, 0.1);
   const railMaterial = new THREE.MeshStandardMaterial({
-    color: 0x888888,  // 更亮的金属色
-    metalness: 0.9,
+    color: 0x888888, 
     roughness: 0.1,
     emissive: 0x222222,
     emissiveIntensity: 0.1
   });
-  
-  // 添加四个导轨在四个角落
   const railPositions = [
     [SHAFT_WIDTH/2 - 0.3, 0, SHAFT_DEPTH/2 - 0.3],
     [SHAFT_WIDTH/2 - 0.3, 0, -SHAFT_DEPTH/2 + 0.3],
@@ -374,15 +373,15 @@ const createFloorLights = () => {
 
 // 创建蓝色光晕效果
 const createBlueGlowEffects = () => {
-  // 创建两组不同的光效
-  // 第一组：圆环光效 - 使用更多的细分以减少马赛克效果
-  for (let i = 0; i < 3; i++) {
+  // 创建光效组
+  // 光环效果 - 多创建几个使效果更丰富
+  for (let i = 0; i < 5; i++) { // 增加到5个光环
     // 创建圆环几何体 - 增加细分数量以减少马赛克
     const ringGeometry = new THREE.RingGeometry(0.2, 5.0, 64, 4);
     
-    // 创建发光材质 - 更亮更饱和的蓝色
+    // 创建发光材质 - 更适合主题色的蓝色，亮度适中
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00e5ff, // 鲜亮的蓝色
+      color: 0x3a5b7c, // 调整为主题色的蓝色
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,
@@ -405,71 +404,70 @@ const createBlueGlowEffects = () => {
     // 存储到数组中以便动画更新
     blueGlow.push({
       mesh: ring,
-      delay: i * 1.0, // 更短的延迟
+      delay: i * 0.7, // 缩短延迟，使效果更密集
       active: false,
-      type: 'ring'
+      type: 'ring',
+      scale: 1 + i * 0.4 // 不同大小的光环
     });
   }
   
-  // 第二组：粒子光效 - 使用自定义着色器以获得更好的效果
-  // 创建圆盘粒子系统
-  const particleCount = 100; // 增加粒子数量
-  const particleGeometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(particleCount * 3);
-  const colors = new Float32Array(particleCount * 3);
+  // 添加向上流动的光线效果
+  const createFlowingLines = (count, direction) => {
+    for (let i = 0; i < count; i++) {
+      // 线条几何体
+      const lineGeometry = new THREE.BufferGeometry();
+      const vertices = new Float32Array(6); // 每条线有2个点，每个点3个坐标值
+      
+      // 设置随机位置
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 2 + Math.random() * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const height = Math.random() * 5;
+      
+      vertices[0] = x; // x1
+      vertices[1] = 0; // y1
+      vertices[2] = z; // z1
+      vertices[3] = x; // x2
+      vertices[4] = height; // y2
+      vertices[5] = z; // z2
+      
+      lineGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      
+      // 线条材质
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x5c92d2,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      
+      // 创建线条
+      const line = new THREE.Line(lineGeometry, lineMaterial);
+      scene.add(line);
+      
+      // 保存
+      blueGlow.push({
+        mesh: line,
+        type: 'flowline',
+        direction: direction, // 线条流动方向
+        speed: 0.05 + Math.random() * 0.1, // 随机速度
+        height: height,
+        startY: Math.random() * -10, // 随机起始位置
+        angle: angle,
+        radius: radius
+      });
+    }
+  };
   
-  // 创建粒子位置和颜色
-  for (let i = 0; i < particleCount; i++) {
-    // 随机角度，但确保均匀分布
-    const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.2;
-    // 随机距离，但确保更均匀的分布
-    const radius = Math.sqrt(Math.random()) * 4.0;
-    
-    // 设置位置
-    positions[i * 3] = Math.cos(angle) * radius; // x
-    positions[i * 3 + 1] = 0; // y
-    positions[i * 3 + 2] = Math.sin(angle) * radius; // z
-    
-    // 设置颜色 - 基于距离的渐变
-    const intensity = 1.0 - (radius / 4.0) * 0.5;
-    colors[i * 3] = 0.0; // R
-    colors[i * 3 + 1] = 0.9 * intensity; // G
-    colors[i * 3 + 2] = 1.0 * intensity; // B
-  }
+  // 创建向上和向下的光线
+  createFlowingLines(30, 1); // 向上的光线
+  createFlowingLines(30, -1); // 向下的光线
   
-  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  
-  // 创建更高级的粒子材质
-  const particleMaterial = new THREE.PointsMaterial({
-    size: 0.15,
-    transparent: true,
-    opacity: 0.8,
-    vertexColors: true, // 使用顶点颜色
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-    depthWrite: false // 禁用深度写入以改善叠加效果
-  });
-  
-  // 创建粒子系统
-  const particles = new THREE.Points(particleGeometry, particleMaterial);
-  particles.position.y = 0.1;
-  scene.add(particles);
-  
-  // 存储粒子系统
-  blueGlow.push({
-    mesh: particles,
-    delay: 0,
-    active: true,
-    type: 'particles',
-    originalPositions: positions.slice(), // 保存原始位置
-    colors: colors // 保存颜色数组
-  });
-  
-  // 添加第三组：光盘效果
+  // 光盘效果
   const diskGeometry = new THREE.CircleGeometry(4.0, 64);
   const diskMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00ffff,
+    color: 0x3a5b7c, // 主题色的蓝色
     transparent: true,
     opacity: 0.1,
     side: THREE.DoubleSide,
@@ -487,106 +485,213 @@ const createBlueGlowEffects = () => {
     active: true,
     type: 'disk'
   });
+  
+  // 添加脉冲波效果
+  const pulseGeometry = new THREE.SphereGeometry(0.1, 32, 16);
+  const pulseMaterial = new THREE.MeshBasicMaterial({
+    color: 0x7fb2ff,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending
+  });
+  
+  const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial);
+  pulse.position.y = 0.1;
+  scene.add(pulse);
+  
+  blueGlow.push({
+    mesh: pulse,
+    active: true,
+    type: 'pulse',
+    scale: 0.1,
+    pulseTime: 0
+  });
 };
 
 // 更新蓝色光环效果
 const updateBlueGlowEffects = () => {
-  // 更新动画时间 - 降低增量以减少卡顿
+  // 更新动画时间
   glowTime += 0.01;
+  
+  // 获取电梯运动方向
+  const direction = elevatorDirection.value;
+  const isActive = isMoving.value;
   
   // 更新每个光效
   blueGlow.forEach(glow => {
     // 确保所有光效跟随电梯
     if (elevatorCabin && glow.mesh) {
       const elevatorBottomY = elevatorCabin.position.y - CABIN_HEIGHT / 2;
-      glow.mesh.position.y = elevatorBottomY + 0.05;
+      
+      // 根据光效类型更新位置
+      if (glow.type !== 'flowline') {
+        glow.mesh.position.y = elevatorBottomY + 0.05;
+      }
     }
     
     // 根据光效类型更新
     if (glow.type === 'ring') {
       // 圆环光效
-      // 检查是否应该开始动画（基于延迟）- 缩短循环周期使光效更频繁
-      if (glowTime % 3.5 >= glow.delay && glowTime % 3.5 < glow.delay + 1.5) {
+      // 检查是否应该开始动画（基于延迟）
+      if ((glowTime % 3) >= glow.delay && (glowTime % 3) < glow.delay + 1.2) {
         glow.active = true;
         
         // 计算动画进度 (0-1)
-        let progress = (glowTime % 3.5 - glow.delay) / 1.5;
+        let progress = (glowTime % 3 - glow.delay) / 1.2;
         
         // 使用平滑的缓动函数
         progress = smoothstep(0, 1, progress);
         
-        // 更新大小 (从小到大) - 更平滑的扩散效果
-        glow.mesh.scale.set(1 + progress * 4, 1 + progress * 4, 1);
+        // 根据电梯方向调整光环效果
+        let scaleMultiplier = glow.scale || 1;
         
-        // 更新透明度 (先增加后减少) - 更平滑的透明度变化
-        if (progress < 0.2) { 
-          glow.mesh.material.opacity = smoothstep(0, 1, progress / 0.2) * 0.7;
-        } else {
-          glow.mesh.material.opacity = 0.7 * smoothstep(1, 0, (progress - 0.2) / 0.8);
+        if (isActive) {
+          // 电梯移动时，根据方向调整光环扩散方式
+          if (direction > 0) { // 向上运动
+            // 更快更大的扩散
+            scaleMultiplier *= 1.2;
+          } else { // 向下运动
+            // 更慢更小的扩散
+            scaleMultiplier *= 0.8;
+          }
         }
         
-        // 添加颜色变化 - 更平滑的颜色变化
-        const hue = 0.5 + Math.sin(progress * Math.PI) * 0.1; 
-        const saturation = 0.9 + Math.sin(progress * Math.PI * 2) * 0.1;
-        glow.mesh.material.color.setHSL(hue, saturation, 0.6 + progress * 0.3);
+        // 更新大小
+        glow.mesh.scale.set(
+          0.5 + progress * 4 * scaleMultiplier, 
+          0.5 + progress * 4 * scaleMultiplier, 
+          1
+        );
+        
+        // 更新透明度
+        let opacityMax = isActive ? 0.6 : 0.4; // 运动时更亮
+        
+        if (progress < 0.2) { 
+          glow.mesh.material.opacity = smoothstep(0, 1, progress / 0.2) * opacityMax;
+        } else {
+          glow.mesh.material.opacity = opacityMax * smoothstep(1, 0, (progress - 0.2) / 0.8);
+        }
+        
+        // 颜色变化 - 根据电梯方向变化
+        let hue = 0.58; // 默认主题色蓝色
+        let saturation = 0.5;
+        let lightness = 0.4 + progress * 0.2;
+        
+        if (isActive) {
+          if (direction > 0) { // 向上时偏青色
+            hue = 0.53;
+            saturation = 0.7;
+            lightness = 0.45 + progress * 0.25;
+          } else { // 向下时偏蓝紫色
+            hue = 0.63;
+            saturation = 0.6;
+            lightness = 0.4 + progress * 0.2;
+          }
+        }
+        
+        glow.mesh.material.color.setHSL(hue, saturation, lightness);
       } else {
         glow.active = false;
         glow.mesh.material.opacity = 0;
       }
-    } else if (glow.type === 'particles') {
-      // 粒子系统光效 - 更平滑的动画
+    } else if (glow.type === 'flowline') {
+      // 流动线效果 - 根据电梯运动方向激活对应方向的线条
       const positions = glow.mesh.geometry.attributes.position.array;
-      const originalPositions = glow.originalPositions;
-      const colors = glow.mesh.geometry.attributes.color.array;
+      const elevatorBottomY = elevatorCabin ? elevatorCabin.position.y - CABIN_HEIGHT / 2 : 0;
       
-      // 粒子脉冲效果 - 更平滑的脉冲
-      const pulseFrequency = 0.8;
-      const pulseIntensity = 0.5 + 0.5 * Math.sin(glowTime * pulseFrequency);
+      // 仅在电梯移动时显示，且只显示与电梯移动方向相同的线条
+      let shouldShow = isActive && (glow.direction === direction);
+      let opacity = shouldShow ? 0.7 : 0;
       
-      // 更新粒子位置和颜色
-      for (let i = 0; i < positions.length / 3; i++) {
-        // 获取原始角度和半径
-        const angle = Math.atan2(originalPositions[i * 3 + 2], originalPositions[i * 3]);
-        const radius = Math.sqrt(originalPositions[i * 3] * originalPositions[i * 3] + 
-                                originalPositions[i * 3 + 2] * originalPositions[i * 3 + 2]);
-        
-        // 平滑的波动半径
-        const waveRadius = radius * (1 + 0.15 * Math.sin(angle * 3 + glowTime * 1.5));
-        
-        // 更新位置 - 更平滑的运动
-        positions[i * 3] = Math.cos(angle + glowTime * 0.1 * (1 - radius / 4)) * waveRadius;
-        positions[i * 3 + 2] = Math.sin(angle + glowTime * 0.1 * (1 - radius / 4)) * waveRadius;
-        
-        // 更平滑的垂直波动
-        positions[i * 3 + 1] = Math.sin(glowTime * 2 + radius * 3) * 0.05;
-        
-        // 更新颜色 - 基于位置和时间的动态变化
-        const colorPulse = 0.7 + 0.3 * Math.sin(glowTime * 2 + radius * 5);
-        const distanceFactor = 1.0 - (radius / 4.0) * 0.7;
-        
-        colors[i * 3] = 0.0; // R
-        colors[i * 3 + 1] = 0.7 * distanceFactor * colorPulse; // G
-        colors[i * 3 + 2] = 1.0 * distanceFactor * colorPulse; // B
-      }
+      // 更新线条位置，使其跟随电梯
+      let y = glow.startY + glowTime * glow.speed * 10;
       
-      // 更新粒子不透明度 - 更平滑的变化
-      glow.mesh.material.opacity = 0.7 + 0.3 * pulseIntensity;
+      // 循环移动线条
+      y = y % 10;
+      if (y < 0) y += 10;
       
-      // 标记几何体需要更新
+      // 设置线条在电梯底部
+      positions[1] = elevatorBottomY + y;
+      positions[4] = elevatorBottomY + y + glow.height;
+      
+      // 更新线条位置
       glow.mesh.geometry.attributes.position.needsUpdate = true;
-      glow.mesh.geometry.attributes.color.needsUpdate = true;
+      
+      // 设置线条可见性和颜色
+      glow.mesh.material.opacity = opacity;
+      
+      if (shouldShow) {
+        // 根据方向设置不同颜色
+        if (direction > 0) { // 向上
+          glow.mesh.material.color.setHSL(0.53, 0.7, 0.6); // 偏青色
+        } else { // 向下
+          glow.mesh.material.color.setHSL(0.63, 0.6, 0.5); // 偏蓝紫色
+        }
+      }
     } else if (glow.type === 'disk') {
       // 光盘效果
-      // 脉冲不透明度
-      const diskPulse = 0.1 + 0.05 * Math.sin(glowTime * 1.2);
+      // 脉冲不透明度 - 电梯移动时更明显
+      const basePulse = isActive ? 0.15 : 0.08;
+      const pulseAmplitude = isActive ? 0.07 : 0.03;
+      const diskPulse = basePulse + pulseAmplitude * Math.sin(glowTime * 1.2);
       glow.mesh.material.opacity = diskPulse;
       
-      // 旋转光盘
-      glow.mesh.rotation.z += 0.005;
+      // 根据电梯方向调整旋转
+      if (isActive) {
+        // 电梯运动时旋转更快，且方向与电梯一致
+        glow.mesh.rotation.z += 0.01 * direction;
+      } else {
+        // 静止时缓慢旋转
+        glow.mesh.rotation.z += 0.002;
+      }
       
-      // 颜色变化
-      const diskHue = 0.5 + 0.05 * Math.sin(glowTime * 0.5);
-      glow.mesh.material.color.setHSL(diskHue, 1.0, 0.5);
+      // 根据电梯方向变化颜色
+      if (isActive) {
+        if (direction > 0) { // 向上
+          glow.mesh.material.color.setHSL(0.53, 0.7, 0.45); // 偏青色
+        } else { // 向下
+          glow.mesh.material.color.setHSL(0.63, 0.6, 0.4); // 偏蓝紫色
+        }
+      } else {
+        // 静止时使用主题色
+        glow.mesh.material.color.set(0x3a5b7c);
+      }
+    } else if (glow.type === 'pulse') {
+      // 脉冲波效果
+      glow.pulseTime += 0.03;
+      
+      // 电梯移动时脉冲更快更强
+      const pulseSpeed = isActive ? 0.06 : 0.03;
+      const maxScale = isActive ? 8 : 5;
+      
+      glow.pulseTime += pulseSpeed;
+      
+      // 脉冲动画
+      if (glow.pulseTime >= Math.PI) {
+        glow.pulseTime = 0;
+        
+        // 重置脉冲大小
+        glow.mesh.scale.set(0.1, 0.1, 0.1);
+        glow.mesh.material.opacity = 0.8;
+      } else {
+        // 脉冲扩大并淡出
+        const pulseProgress = glow.pulseTime / Math.PI;
+        const pulseScale = pulseProgress * maxScale;
+        glow.mesh.scale.set(pulseScale, pulseScale, pulseScale);
+        glow.mesh.material.opacity = 0.8 * (1 - pulseProgress);
+        
+        // 根据电梯方向变化颜色
+        if (isActive) {
+          if (direction > 0) { // 向上
+            glow.mesh.material.color.setHSL(0.53, 0.7, 0.6); // 偏青色
+          } else { // 向下
+            glow.mesh.material.color.setHSL(0.63, 0.6, 0.5); // 偏蓝紫色
+          }
+        } else {
+          // 静止时使用主题色
+          glow.mesh.material.color.set(0x7fb2ff);
+        }
+      }
     }
   });
 };
@@ -761,8 +866,37 @@ const toggleCameraMode = () => {
 <template>
   <div class="elevator-visualizer">
     <div class="elevator-3d-container" ref="elevatorContainer"></div>
+    
+    <div class="system-shortcuts">
+      <div 
+        v-for="system in elevatorData.systems" 
+        :key="system.id"
+        class="system-shortcut"
+        :class="{'system-error': system.status === '故障'}"
+        @click="$emit('system-click', system.id)"
+      >
+        <div class="shortcut-icon">
+          <!-- 使用图片替换所有系统图标 -->
+          <img v-if="system.name === '曳引系统'" src="/traction-system-icon.png" class="custom-icon" alt="曳引系统" />
+          <img v-else-if="system.name.includes('导向')" src="/gui-system-icon.png" class="custom-icon" alt="导向系统" />
+          <img v-else-if="system.name.includes('控制')" src="/electri-system-icon.png" class="custom-icon" alt="电气控制系统" />
+          <img v-else-if="system.name.includes('门')" src="/door-system-icon.png" class="custom-icon" alt="门系统" />
+          
+          <!-- 状态指示点 -->
+          <div class="status-dot" :class="{
+            'status-normal': system.status === '正常',
+            'status-warning': system.status === '警告',
+            'status-error': system.status === '故障'
+          }"></div>
+        </div>
+        <div class="shortcut-info">
+          <div class="shortcut-name">{{ system.name }}</div>
+        </div>
+      </div>
+    </div>
+    
     <button class="camera-toggle-btn" @click="toggleCameraMode">
-      {{ cameraMode === 'follow' ? '360°展示模式' : '跟随模式' }}
+      {{ cameraMode === 'follow' ? '跟随模式' : '360°展示模式' }}
     </button>
   </div>
 </template>
@@ -782,6 +916,103 @@ const toggleCameraMode = () => {
   background: transparent;
 }
 
+.system-shortcuts {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  z-index: 10;
+  width: 100px;
+}
+
+.system-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  padding: 5px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.system-shortcut:hover {
+  transform: translateY(-3px);
+  background: transparent;
+  box-shadow: none;
+}
+
+.system-shortcut.system-error {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.shortcut-icon {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.shortcut-icon::before {
+  display: none;
+}
+
+.status-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  z-index: 3;
+  transition: all 0.3s ease;
+}
+
+.status-normal {
+  background-color: #2ecc71;
+}
+
+.status-warning {
+  background-color: #f39c12;
+  animation: pulse-warning 1.5s infinite;
+}
+
+.status-error {
+  background-color: #ff3333;
+  animation: pulse-error 1s infinite;
+}
+
+@keyframes pulse-warning {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse-error {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); box-shadow: 0 0 8px 3px rgba(255, 51, 51, 0.7); }
+  100% { transform: scale(1); }
+}
+
+.shortcut-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.shortcut-name {
+  font-size: 0.9rem;
+  color: #4dabf5;
+  font-weight: 600;
+}
+
 .camera-toggle-btn {
   position: absolute;
   bottom: 20px;
@@ -797,11 +1028,33 @@ const toggleCameraMode = () => {
   transition: all 0.3s ease;
   backdrop-filter: blur(5px);
   font-family: 'Orbitron', sans-serif;
-  text-shadow: 0 0 5px rgba(0, 200, 255, 0.7);
 }
 
 .camera-toggle-btn:hover {
   background: rgba(0, 150, 255, 0.5);
-  box-shadow: 0 0 15px rgba(0, 200, 255, 0.7);
+}
+
+.custom-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.system-error .custom-icon {
+  filter: none;
+}
+
+.custom-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+
+
+@keyframes gentle-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 </style>

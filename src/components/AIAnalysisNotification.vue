@@ -46,7 +46,18 @@
           <button class="action-btn detail-btn" @click="viewDetails" v-if="analysisResult.systemId">
             查看系统详情
           </button>
-          <button class="action-btn dismiss-btn" @click="closeNotification">
+          <button 
+            class="action-btn repair-btn" 
+            @click="reportRepairComplete" 
+            v-if="severity === 'critical'"
+          >
+            上报维修完成
+          </button>
+          <button 
+            class="action-btn dismiss-btn" 
+            @click="closeNotification"
+            v-if="severity !== 'critical'"
+          >
             关闭
           </button>
         </div>
@@ -120,20 +131,43 @@ export default {
   },
   watch: {
     visible(newVal) {
+      console.log('AIAnalysisNotification visible属性变化:', newVal);
       this.showNotification = newVal;
-      if (newVal && this.severity !== 'critical') {
-        this.setAutoClose();
+      
+      // 如果变为可见，重置关闭状态并设置自动关闭
+      if (newVal) {
+        this.isClosing = false;
+        if (this.severity !== 'critical') {
+          this.setAutoClose();
+        }
+      } else {
+        // 如果变为不可见，确保清除定时器
+        this.clearAutoClose();
       }
     },
-    analysisResult() {
-      // 当分析结果更新时，重置自动关闭计时器
-      if (this.showNotification && this.severity !== 'critical') {
-        this.clearAutoClose();
-        this.setAutoClose();
-      }
+    analysisResult: {
+      handler(newVal) {
+        console.log('AIAnalysisNotification analysisResult变化:', newVal);
+        // 当分析结果更新时，重置自动关闭计时器
+        if (this.showNotification && this.severity !== 'critical') {
+          this.clearAutoClose();
+          this.setAutoClose();
+        }
+        
+        // 当有新的分析结果时，确保通知显示
+        if (newVal && Object.keys(newVal).length > 0) {
+          this.showNotification = true;
+          this.isClosing = false;
+        }
+      },
+      deep: true
     }
   },
   mounted() {
+    console.log('AIAnalysisNotification mounted, visible:', this.visible);
+    // 组件挂载时，根据visible属性决定是否显示
+    this.showNotification = this.visible;
+    
     if (this.showNotification && this.severity !== 'critical') {
       this.setAutoClose();
     }
@@ -143,6 +177,22 @@ export default {
   },
   methods: {
     closeNotification() {
+      console.log('关闭AI分析通知');
+      this.isClosing = true;
+      this.clearAutoClose();
+      
+      // 等待动画完成后再隐藏通知
+      setTimeout(() => {
+        this.showNotification = false;
+        this.isClosing = false;
+        this.$emit('close');
+      }, 300); // 动画时长
+    },
+    reportRepairComplete() {
+      // 发送维修完成事件
+      this.$emit('repair-complete');
+      
+      // 关闭通知
       this.isClosing = true;
       this.clearAutoClose();
       
@@ -182,6 +232,7 @@ export default {
       // 非严重警告会在10秒后自动关闭
       this.clearAutoClose();
       if (this.severity !== 'critical') {
+        console.log('设置自动关闭定时器');
         this.autoCloseTimer = setTimeout(() => {
           this.closeNotification();
         }, 10000); // 10秒后自动关闭
@@ -355,6 +406,17 @@ export default {
 
 .detail-btn:hover {
   background: rgba(52, 152, 219, 0.3);
+}
+
+.repair-btn {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  font-weight: bold;
+}
+
+.repair-btn:hover {
+  background: rgba(46, 204, 113, 0.3);
 }
 
 .dismiss-btn {
