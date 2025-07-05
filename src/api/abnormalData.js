@@ -40,6 +40,40 @@ export default {
    * @returns {Promise<Object>} 返回AI分析结果
    */
   sendDataToAI(data) {
-    return axios.post(`${API_BASE_URL}/data-etable/send-data-to-ai`, data);
+    // 添加请求ID和时间戳，确保每次请求都是唯一的
+    const requestData = {
+      ...data,
+      requestId: `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString()
+    };
+    
+    // 确保所有必要字段都已设置
+    if (!requestData.systemName) {
+      console.warn('AI请求中系统名称为空，设置默认值');
+      requestData.systemName = '曳引系统';
+    }
+    
+    if (!requestData.systemSqName) {
+      console.warn('AI请求中子系统名称为空，设置默认值');
+      requestData.systemSqName = '未知组件';
+    }
+    
+    // 确保id和createTime字段明确设置为null，让后端生成
+    requestData.id = null;
+    requestData.createTime = null;
+    
+    console.log('发送AI分析请求:', requestData);
+    return axios.post(`${API_BASE_URL}/data-etable/send-data-to-ai`, requestData);
+  },
+  
+  /**
+   * 接收AI分析判断结果
+   * @returns {Promise<Object>} 返回AI分析结果
+   * @description code=0表示警告，code=1表示严重故障
+   */
+  receiveAIAnalysis() {
+    // 该方法不再使用模拟数据，只在实际有异常数据时才会被调用
+    console.error('receiveAIAnalysis方法已废弃，不应被直接调用');
+    return Promise.reject('该方法已废弃');
   }
 }; 

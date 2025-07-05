@@ -7,13 +7,14 @@
 <script setup>
 import { ref, computed, watch, getCurrentInstance } from 'vue';
 import * as echarts from 'echarts/core';
+import 'echarts-gl'; // 导入echarts-gl以支持3D图表
 
 const props = defineProps({
   // 图表类型属性
   chartType: {
     type: String,
     default: 'bar',
-    validator: (value) => ['bar', 'line', 'radar', 'pie', 'gauge'].includes(value)
+    validator: (value) => ['bar', 'line', 'radar', 'pie', 'gauge', 'bar3D', 'line3D', 'scatter3D', 'surface3D', 'gauge3D'].includes(value)
   },
   paramGroup: {
     type: String,
@@ -98,6 +99,205 @@ const formatTooltip = (param) => {
 
 // 创建图表配置
 const chartOption = computed(() => {
+  // 处理趋势图表 - 3D线图
+  if (props.chartType === 'line3D' && props.timeLabels && props.trendData) {
+    const series = [];
+    const legend = [];
+    
+    // 构建3D数据结构
+    Object.entries(props.trendData).forEach(([key, values], index) => {
+      let name;
+      let color;
+      
+      switch(key) {
+        case 'temperature': 
+          name = '电机温度'; 
+          color = '#5470c6';
+          break;
+        case 'vibration': 
+          name = '振动速度'; 
+          color = '#91cc75';
+          break;
+        case 'current': 
+          name = '电流'; 
+          color = '#fac858';
+          break;
+        default: 
+          name = key;
+          color = ['#5470c6', '#91cc75', '#fac858'][index % 3];
+      }
+      
+      legend.push(name);
+      
+      // 创建3D数据点
+      const data = [];
+      for (let i = 0; i < values.length; i++) {
+        // x为时间索引，y为数据类型，z为值
+        data.push([i, index, values[i]]);
+      }
+      
+      series.push({
+        name: name,
+        type: 'line3D',
+        data: data,
+        lineStyle: {
+          width: 4,
+          color: color
+        },
+        itemStyle: {
+          opacity: 0.8,
+          color: color
+        },
+        emphasis: {
+          lineStyle: {
+            width: 6,
+            color: echarts.color.modifyAlpha(color, 1)
+          },
+          itemStyle: {
+            color: echarts.color.modifyAlpha(color, 1)
+          }
+        }
+      });
+    });
+    
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        axisPointer: {
+          type: 'cross'
+        },
+        formatter: (params) => {
+          let name;
+          let value;
+          
+          // 确定数据点对应的参数名和值
+          const dataY = params.data[1]; // Y轴表示数据类型
+          const dataX = params.data[0]; // X轴表示时间
+          
+          // 从索引获取名称
+          switch(dataY) {
+            case 0: name = '电机温度'; break;
+            case 1: name = '振动速度'; break;
+            case 2: name = '电流'; break;
+            default: name = '未知参数';
+          }
+          
+          value = params.data[2]; // Z轴表示值
+          
+          return `
+            <div style="padding: 8px">
+              <div style="font-weight: bold; margin-bottom: 5px">${name}</div>
+              <div>时间: ${props.timeLabels[dataX]}</div>
+              <div>值: ${value}</div>
+            </div>
+          `;
+        },
+        backgroundColor: 'rgba(40, 40, 40, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        textStyle: {
+          color: '#fff'
+        }
+      },
+      legend: {
+        data: legend,
+        textStyle: {
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: 'bold'
+        },
+        icon: 'roundRect',
+        top: 10,
+        left: 'center',
+        orient: 'horizontal',
+        itemGap: 30,
+        itemHeight: 14,
+        itemWidth: 14
+      },
+      xAxis3D: {
+        type: 'category',
+        data: props.timeLabels,
+        axisLabel: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: 10,
+          margin: 8
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(255, 255, 255, 0.3)'
+          }
+        }
+      },
+      yAxis3D: {
+        type: 'category',
+        data: legend,
+        axisLabel: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: 10,
+          margin: 8
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(255, 255, 255, 0.3)'
+          }
+        }
+      },
+      zAxis3D: {
+        type: 'value',
+        axisLabel: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: 10
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(255, 255, 255, 0.3)'
+          }
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'rgba(255, 255, 255, 0.1)'
+          }
+        }
+      },
+      grid3D: {
+        boxWidth: 200,
+        boxDepth: 80,
+        boxHeight: 100,
+        viewControl: {
+          autoRotate: true,
+          autoRotateSpeed: 5,
+          distance: 200,
+          alpha: 20,
+          beta: 40
+        },
+        light: {
+          main: {
+            intensity: 1.2,
+            shadow: true
+          },
+          ambient: {
+            intensity: 0.3
+          }
+        },
+        environment: '#000',
+        postEffect: {
+          enable: true,
+          bloom: {
+            intensity: 0.1
+          },
+          SSAO: {
+            enable: true,
+            intensity: 1.5
+          }
+        },
+        temporalSuperSampling: {
+          enable: true
+        }
+      },
+      series: series
+    };
+  }
+  
   // 处理趋势图表
   if (props.chartType === 'line' && props.timeLabels && props.trendData) {
     const series = [];
@@ -762,6 +962,494 @@ const chartOption = computed(() => {
             containLabel: true
           },
           series: series
+        };
+      
+      case 'bar3D':
+        // 生成3D数据点
+        const data = filteredParams.map((param, index) => {
+          return [index, 0, param.value]; // [x, y, z/height]
+        });
+        
+        return {
+          backgroundColor: 'transparent',
+          tooltip: {
+            trigger: 'item',
+            formatter: (params) => {
+              const param = filteredParams[params.data[0]];
+              return `${param.name}: ${param.value}${param.unit}<br/>正常范围: ${param.normal}`;
+            },
+            backgroundColor: 'rgba(40, 40, 40, 0.9)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            textStyle: {
+              color: '#fff'
+            }
+          },
+          visualMap: {
+            show: false,
+            min: 0,
+            max: Math.max(...values),
+            inRange: {
+              color: ['#1a9bfc', '#34d5eb', '#9af5fc']
+            }
+          },
+          xAxis3D: {
+            type: 'category',
+            data: names,
+            nameTextStyle: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 12,
+            },
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 10,
+              rotate: 45,
+              margin: 10
+            }
+          },
+          yAxis3D: {
+            type: 'category',
+            data: [''],
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              show: false
+            }
+          },
+          zAxis3D: {
+            type: 'value',
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 10
+            },
+            splitLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.1)'
+              }
+            }
+          },
+          grid3D: {
+            boxWidth: 160,
+            boxDepth: 80,
+            boxHeight: 100,
+            viewControl: {
+              autoRotate: true,
+              autoRotateSpeed: 5,
+              distance: 180,
+              alpha: 20,
+              beta: 30
+            },
+            light: {
+              main: {
+                intensity: 1.2,
+                shadow: true
+              },
+              ambient: {
+                intensity: 0.3
+              }
+            },
+            environment: '#000',
+            postEffect: {
+              enable: true,
+              bloom: {
+                intensity: 0.1
+              },
+              SSAO: {
+                enable: true,
+                intensity: 1.5
+              }
+            },
+            temporalSuperSampling: {
+              enable: true
+            }
+          },
+          series: [{
+            type: 'bar3D',
+            data: data,
+            shading: 'realistic',
+            itemStyle: {
+              opacity: 0.8,
+              borderWidth: 1,
+              borderColor: '#fff'
+            },
+            label: {
+              show: false
+            },
+            emphasis: {
+              itemStyle: {
+                color: '#32c5ff'
+              }
+            },
+            bevelSize: 0.3,
+            bevelSmoothness: 4
+          }]
+        };
+      
+      case 'scatter3D':
+        const scatterData = filteredParams.map((param, index) => {
+          // 创建围绕一个圆的散点
+          const theta = index * (Math.PI * 2 / filteredParams.length);
+          const r = 1 + param.value / 100; // 归一化的半径
+          const x = Math.cos(theta) * r;
+          const y = Math.sin(theta) * r;
+          const z = param.value;
+          return [x, y, z, param.value, param.name];
+        });
+        
+        return {
+          backgroundColor: 'transparent',
+          tooltip: {
+            formatter: (params) => {
+              const name = params.data[4];
+              const value = params.data[3];
+              const param = filteredParams.find(p => p.name === name);
+              if (param) {
+                return `
+                  <div style="padding: 8px">
+                    <div style="font-weight: bold; margin-bottom: 5px">${param.name}</div>
+                    <div>当前值: ${param.value}${param.unit}</div>
+                    <div>正常范围: ${param.normal}</div>
+                  </div>
+                `;
+              }
+              return params.name;
+            },
+            backgroundColor: 'rgba(40, 40, 40, 0.9)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            textStyle: {
+              color: '#fff'
+            }
+          },
+          legend: {
+            textStyle: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 12
+            }
+          },
+          xAxis3D: {
+            type: 'value',
+            scale: true,
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 10
+            }
+          },
+          yAxis3D: {
+            type: 'value',
+            scale: true,
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 10
+            }
+          },
+          zAxis3D: {
+            type: 'value',
+            axisLine: {
+              lineStyle: {
+                color: 'rgba(255, 255, 255, 0.3)'
+              }
+            },
+            axisLabel: {
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 10
+            }
+          },
+          grid3D: {
+            viewControl: {
+              autoRotate: true,
+              autoRotateSpeed: 10,
+              distance: 170
+            },
+            light: {
+              main: {
+                intensity: 1.2,
+                shadow: true
+              },
+              ambient: {
+                intensity: 0.3
+              }
+            },
+            environment: '#000',
+            postEffect: {
+              enable: true,
+              bloom: {
+                intensity: 0.1
+              }
+            },
+            temporalSuperSampling: {
+              enable: true
+            }
+          },
+          series: [{
+            type: 'scatter3D',
+            name: props.paramGroup,
+            data: scatterData,
+            symbolSize: 15,
+            itemStyle: {
+              opacity: 0.9,
+              borderWidth: 1,
+              borderColor: '#fff',
+              color: (params) => {
+                const param = filteredParams.find(p => p.name === params.data[4]);
+                const status = param ? getParamStatus(param) : 'normal';
+                return getStatusColor(status);
+              }
+            },
+            emphasis: {
+              itemStyle: {
+                opacity: 1
+              }
+            },
+            label: {
+              show: true,
+              formatter: (params) => params.data[4],
+              textStyle: {
+                color: '#fff',
+                fontSize: 12,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                padding: [3, 5]
+              }
+            }
+          }]
+        };
+      
+      case 'gauge3D':
+        // 使用3D旋转的普通仪表盘
+        const gaugeSeries = filteredParams.map((param, index) => {
+          const status = getParamStatus(param);
+          const color = getStatusColor(status);
+          
+          // 计算最小值和最大值
+          let min = 0;
+          let max = param.value * 2;
+          
+          if (param.normal) {
+            if (param.normal.includes('≤')) {
+              const normalValue = parseFloat(param.normal.replace('≤', ''));
+              if (!isNaN(normalValue)) max = normalValue * 1.5;
+            } else if (param.normal.includes('~')) {
+              const parts = param.normal.split('~');
+              if (parts.length === 2) {
+                min = parseFloat(parts[0]);
+                max = parseFloat(parts[1]) * 1.2;
+              }
+            }
+          }
+          
+          // 计算仪表盘位置
+          const totalItems = filteredParams.length;
+          let centerX, centerY;
+          
+          if (totalItems === 1) {
+            centerX = '50%';
+            centerY = '50%';
+          } else if (totalItems === 2) {
+            centerX = index === 0 ? '25%' : '75%';
+            centerY = '50%';
+          } else if (totalItems === 3 || totalItems === 4) {
+            const row = Math.floor(index / 2);
+            const col = index % 2;
+            centerX = col === 0 ? '25%' : '75%';
+            centerY = row === 0 ? '30%' : '75%';
+          } else {
+            const cols = Math.ceil(Math.sqrt(totalItems));
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            centerX = `${(col * 100 / (cols - 1 || 1))}%`;
+            centerY = `${(row * 100 / (Math.ceil(totalItems / cols) - 1 || 1))}%`;
+          }
+          
+          // 根据参数总数调整仪表盘半径
+          let radius;
+          if (totalItems <= 2) {
+            radius = '70%';
+          } else if (totalItems <= 4) {
+            radius = '50%';
+          } else {
+            radius = '40%';
+          }
+          
+          return {
+            name: param.name,
+            type: 'gauge',
+            radius: radius,
+            center: [centerX, centerY],
+            min: min,
+            max: max,
+            splitNumber: 5,
+            axisLine: {
+              lineStyle: {
+                width: 12, // 加粗线条以提升3D感
+                color: [
+                  [0.3, '#91c7ae'],
+                  [0.7, '#63869e'],
+                  [1, '#c23531']
+                ],
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            },
+            pointer: {
+              itemStyle: {
+                color: 'auto'
+              },
+              width: 6, // 加粗指针
+              length: '80%',
+              shadowBlur: 5,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            },
+            axisTick: {
+              distance: -12,
+              length: 6,
+              lineStyle: {
+                color: 'auto',
+                shadowBlur: 2
+              }
+            },
+            splitLine: {
+              distance: -20,
+              length: 15,
+              lineStyle: {
+                color: 'auto',
+                shadowBlur: 3
+              }
+            },
+            axisLabel: {
+              distance: -25,
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontSize: 12,
+              fontWeight: 'bold',
+              shadowBlur: 2,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            },
+            title: {
+              offsetCenter: [0, '60%'],
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: 'rgba(255, 255, 255, 0.9)',
+              shadowBlur: 2,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            },
+            detail: {
+              formatter: `{value} ${param.unit}`,
+              fontSize: 16,
+              fontWeight: 'bold',
+              offsetCenter: [0, '90%'],
+              color: color,
+              shadowBlur: 3,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            },
+            data: [{
+              value: param.value,
+              name: param.name
+            }],
+            animation: true
+          };
+        });
+        
+        return {
+          backgroundColor: 'transparent',
+          title: {
+            text: props.paramGroup,
+            left: 'center',
+            textStyle: {
+              color: '#5fb1f6',
+              fontSize: 16,
+              fontWeight: 'bold'
+            }
+          },
+          tooltip: {
+            formatter: (params) => {
+              const param = filteredParams.find(p => p.name === params.seriesName);
+              if (param) {
+                return `
+                  <div style="padding: 8px">
+                    <div style="font-weight: bold; margin-bottom: 5px">${param.name}</div>
+                    <div>当前值: ${param.value}${param.unit}</div>
+                    <div>正常范围: ${param.normal}</div>
+                    <div>故障范围: ${param.critical}</div>
+                  </div>
+                `;
+              }
+              return params.name;
+            },
+            backgroundColor: 'rgba(40, 40, 40, 0.9)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            textStyle: {
+              color: '#fff'
+            }
+          },
+          graphic: [
+            // 添加图形元素来增强3D效果
+            ...filteredParams.map((param, index) => {
+              // 计算图形元素位置
+              const totalItems = filteredParams.length;
+              let centerX, centerY;
+              
+              if (totalItems === 1) {
+                centerX = '50%';
+                centerY = '50%';
+              } else if (totalItems === 2) {
+                centerX = index === 0 ? '25%' : '75%';
+                centerY = '50%';
+              } else if (totalItems === 3 || totalItems === 4) {
+                const row = Math.floor(index / 2);
+                const col = index % 2;
+                centerX = col === 0 ? '25%' : '75%';
+                centerY = row === 0 ? '30%' : '75%';
+              } else {
+                const cols = Math.ceil(Math.sqrt(totalItems));
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                centerX = `${(col * 100 / (cols - 1 || 1))}%`;
+                centerY = `${(row * 100 / (Math.ceil(totalItems / cols) - 1 || 1))}%`;
+              }
+              
+              // 为每个仪表盘添加一个圆形底座，增强3D效果
+              return {
+                type: 'group',
+                left: centerX,
+                top: centerY,
+                children: [{
+                  type: 'circle',
+                  z: -1,
+                  shape: { r: 65 },
+                  style: {
+                    fill: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+                      { offset: 0, color: 'rgba(30, 59, 117, 0.8)' },
+                      { offset: 1, color: 'rgba(15, 29, 58, 0.2)' }
+                    ]),
+                    shadowBlur: 20,
+                    shadowColor: 'rgba(0, 40, 120, 0.3)',
+                    shadowOffsetY: 5
+                  }
+                }]
+              };
+            })
+          ],
+          series: gaugeSeries
         };
       
       default:

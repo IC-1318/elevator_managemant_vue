@@ -20,6 +20,12 @@ class DataCollectionService {
     this.anomalyQueue = [];
     this.lastSentTimestamp = Date.now();
     this.elevatorId = null;
+    this.aiCheckTimer = null; // AI分析结果检查定时器
+    this.aiAnalysisCallbacks = []; // AI分析结果回调函数列表
+    this.anomalyCallbacks = []; // 异常检测回调函数列表
+    
+    // 日志导入的API
+    console.log('DataCollectionService初始化，abnormalDataApi:', abnormalDataApi);
   }
 
   /**
@@ -28,6 +34,46 @@ class DataCollectionService {
    */
   setElevatorId(elevatorId) {
     this.elevatorId = elevatorId;
+  }
+
+  /**
+   * 开始数据采集（新接口，与Dashboard.vue兼容）
+   * @returns {boolean} 是否成功启动采集
+   */
+  start() {
+    if (this.isCollecting) {
+      console.warn('数据采集已在进行');
+      return false;
+    }
+
+    // 默认设置电梯ID
+    if (!this.elevatorId) {
+      this.elevatorId = 'EL-001';
+    }
+
+    this.isCollecting = true;
+
+    // 不再自动检查AI分析结果
+    console.log(`数据采集服务已启动，间隔: ${this.collectionInterval}ms`);
+    return true;
+  }
+
+  /**
+   * 停止数据采集（新接口，与Dashboard.vue兼容）
+   */
+  stop() {
+    if (!this.isCollecting) {
+      return;
+    }
+
+    if (this.collectionTimer) {
+      clearInterval(this.collectionTimer);
+      this.collectionTimer = null;
+    }
+
+    this.isCollecting = false;
+
+    console.log(`数据采集服务已停止`);
   }
 
   /**
@@ -44,12 +90,16 @@ class DataCollectionService {
 
     this.isCollecting = true;
     this.elevatorData = elevatorData;
-    this.onAnomalyDetected = onAnomalyDetected;
+    if (onAnomalyDetected && typeof onAnomalyDetected === 'function') {
+      this.anomalyCallbacks.push(onAnomalyDetected);
+    }
 
     // 启动定时采集
     this.collectionTimer = setInterval(() => {
       this.collectAndProcessData();
     }, this.collectionInterval);
+
+    // 不再自动检查AI分析结果
 
     console.log(`电梯 ${this.elevatorId} 数据采集已启动，间隔: ${this.collectionInterval}ms`);
     return true;
@@ -72,6 +122,8 @@ class DataCollectionService {
       this.sendAnomalyData();
     }
 
+    // 不再需要清除AI分析结果检查定时器
+
     console.log(`电梯 ${this.elevatorId} 数据采集已停止`);
   }
 
@@ -87,24 +139,44 @@ class DataCollectionService {
 
     const currentData = this.elevatorData.value;
     const timestamp = Date.now();
+    
+    // 检测异常数据但不自动发送
     const anomalies = this.detectAnomalies(currentData, timestamp);
 
-    // 如果检测到异常
+    // 如果检测到异常，只通知回调，但不自动发送到后端
     if (anomalies.length > 0) {
-      // 添加到队列
-      this.anomalyQueue.push(...anomalies);
-      
       // 触发回调
-      if (this.onAnomalyDetected && typeof this.onAnomalyDetected === 'function') {
-        this.onAnomalyDetected(anomalies);
-      }
-
-      // 检查是否需要发送数据
-      if (this.anomalyQueue.length >= this.batchSize || 
-          (timestamp - this.lastSentTimestamp) > 60000) { // 每分钟至少发送一次
-        this.sendAnomalyData();
-      }
+      this.notifyAnomalyCallbacks(anomalies);
+      
+      // 添加到队列，但不自动发送
+      // 只在手动触发模拟异常时才发送
+      this.anomalyQueue.push(...anomalies);
     }
+  }
+
+  /**
+   * 注册异常回调
+   * @param {Function} callback - 异常回调函数
+   */
+  onAnomaly(callback) {
+    if (typeof callback === 'function') {
+      this.anomalyCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * 通知所有异常回调函数
+   * @param {Object} anomalies - 异常数据
+   * @private
+   */
+  notifyAnomalyCallbacks(anomalies) {
+    this.anomalyCallbacks.forEach(callback => {
+      try {
+        callback(anomalies);
+      } catch (error) {
+        console.error('执行异常回调函数失败:', error);
+      }
+    });
   }
 
   /**
@@ -346,58 +418,143 @@ class DataCollectionService {
 
   /**
    * 获取AI分析结果
-   * @param {string} systemId - 系统ID（可选，不传则获取所有系统）
+   * @param {Object} anomalyData - 异常数据对象
    * @returns {Promise<Object>} AI分析结果
    */
-  async getAIAnalysis(systemName = null) {
+  async getAIAnalysis(anomalyData) {
     try {
-      console.log('尝试获取AI分析结果:', systemName);
+      console.log('尝试获取AI分析结果:', anomalyData);
+      
+      if (!anomalyData) {
+        console.error('错误: 未提供异常数据');
+        throw new Error('未提供异常数据');
+      }
+      
+      // 确保必填字段不为空
+      if (!anomalyData.systemName) {
+        console.warn('systemName为空，设置默认值');
+        anomalyData.systemName = '曳引系统';
+      }
+      
+      if (!anomalyData.systemSqName) {
+        console.warn('systemSqName为空，设置默认值');
+        anomalyData.systemSqName = '未知组件';
+      }
       
       try {
-        // 构造一个模拟的异常数据用于AI分析
-        const mockData = {
-          systemName: systemName || '曳引系统',
-          systemSqName: '曳引电动机',
-          eName: this.elevatorId || '电梯',
-          eData: 153
-        };
-        
         // 调用API发送数据进行AI分析
-        const response = await abnormalDataApi.sendDataToAI(mockData);
+        const response = await abnormalDataApi.sendDataToAI(anomalyData);
+        console.log('AI分析响应:', response);
+        
+        // 解析响应数据
+        let messageContent = '';
+        let code = 0;
+        
+        if (response && response.data) {
+          console.log('解析AI响应数据类型:', typeof response.data);
+          
+          // 检查response.data是否为字符串
+          if (typeof response.data === 'string') {
+            try {
+              // 尝试解析JSON字符串
+              const responseData = JSON.parse(response.data);
+              console.log('成功解析JSON字符串:', responseData);
+              messageContent = responseData.message || '';
+              code = responseData.code || 0;
+            } catch (e) {
+              console.error('解析JSON字符串失败:', e);
+              messageContent = response.data;
+            }
+          } 
+          // 检查response.data是否为对象
+          else if (typeof response.data === 'object') {
+            // 直接从对象中提取数据
+            if (response.data.code !== undefined) {
+              // 确保code是数字0或1，而不是HTTP状态码
+              code = response.data.code === 200 ? 0 : (Number(response.data.code) || 0);
+              // 确保code只能是0或1
+              code = code > 0 ? 1 : 0;
+            }
+            
+            if (response.data.message) {
+              messageContent = response.data.message;
+            } else if (response.data.data && typeof response.data.data === 'string') {
+              try {
+                // 尝试解析嵌套的JSON
+                const innerData = JSON.parse(response.data.data);
+                messageContent = innerData.message || '';
+                if (innerData.code !== undefined) {
+                  code = Number(innerData.code) || 0;
+                  code = code > 0 ? 1 : 0;
+                }
+              } catch (e) {
+                console.error('解析嵌套JSON失败:', e);
+                messageContent = response.data.data;
+              }
+            }
+          }
+        }
+        
+        console.log('解析后的消息内容:', messageContent);
+        console.log('解析后的代码值:', code);
+        
+        // 根据code确定严重性
+        const severity = code === 1 ? 'critical' : 'warning';
+        
         return {
           id: 'ai-analysis-' + Date.now(),
           timestamp: Date.now(),
-          systemName: mockData.systemName,
-          severity: 'warning',
+          systemName: anomalyData.systemName,
+          systemSqName: anomalyData.systemSqName,
+          severity: severity,
+          code: code,
           systemInfo: {
-            name: mockData.systemName,
-            status: '异常'
+            name: anomalyData.systemName,
+            status: severity === 'critical' ? '故障' : '异常'
           },
-          summary: response.data.message,
-          details: [response.data.message],
+          summary: messageContent,
+          details: [messageContent],
           recommendations: ['请根据AI分析结果进行相应处理']
         };
       } catch (apiError) {
         console.error('获取AI分析结果API调用失败:', apiError);
-        // 返回模拟数据，避免前端出错
-        return {
-          id: 'mock-ai-analysis',
-          timestamp: Date.now(),
-          systemName: systemName || '曳引系统',
-          severity: 'warning',
-          systemInfo: {
-            name: '模拟系统',
-            status: '正常'
-          },
-          summary: '这是一个模拟的AI分析结果，因为API调用失败。',
-          details: ['API调用失败，无法获取真实分析数据。'],
-          recommendations: ['检查后端API是否正常运行。']
-        };
+        throw apiError;
       }
     } catch (error) {
       console.error('获取AI分析结果过程中发生严重错误:', error);
       throw error;
     }
+  }
+
+  /**
+   * 检查AI分析结果 - 此方法已弃用，不再自动检查
+   */
+  async checkAIAnalysisResults() {
+    console.log('此方法已弃用，不再自动检查AI分析结果');
+  }
+
+  /**
+   * 注册AI分析结果回调
+   * @param {Function} callback - AI分析结果回调函数
+   */
+  onAIAnalysisResult(callback) {
+    if (typeof callback === 'function') {
+      this.aiAnalysisCallbacks.push(callback);
+    }
+  }
+
+  /**
+   * 通知所有AI分析结果回调函数
+   * @param {Object} result - AI分析结果
+   */
+  notifyAIAnalysisCallbacks(result) {
+    this.aiAnalysisCallbacks.forEach(callback => {
+      try {
+        callback(result);
+      } catch (error) {
+        console.error('执行AI分析结果回调函数失败:', error);
+      }
+    });
   }
 }
 
