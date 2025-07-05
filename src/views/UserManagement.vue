@@ -46,6 +46,21 @@ const submitAddUser = async () => {
   }
 };
 
+const handleEdit = async (user) => {
+  try {
+    showAddDialog.value = true;
+    newUser.value = {
+      userName: user.userName,
+      userPhone: user.userPhone,
+      position: user.position,
+      id: user.id
+    };
+  } catch (error) {
+    console.error('编辑人员失败:', error);
+    ElMessage.error('编辑人员失败');
+  }
+};
+
 const handleDelete = async (user) => {
   try {
     const confirmed = confirm(`确认要删除人员 ${user.userName} 吗？`);
@@ -109,6 +124,7 @@ onMounted(() => {
         <el-table-column prop="position" label="岗位" />
         <el-table-column label="操作" width="180">
           <template #default="scope">
+            <el-button size="small" type="primary" @click="handleEdit(scope.row)">修改</el-button>
             <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
