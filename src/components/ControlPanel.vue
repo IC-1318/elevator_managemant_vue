@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import elevatorSocketService from '../services/elevatorSocketService';
 
 const props = defineProps({
   elevatorData: {
@@ -16,18 +17,22 @@ for (let i = 1; i <= props.elevatorData.floorCount; i++) {
 
 // 设置目标楼层
 const setTargetFloor = (floor) => {
-  props.elevatorData.targetFloor = floor;
+  elevatorSocketService.goToFloor(props.elevatorData.id, floor);
 };
 
-// 紧急停止
-const emergencyStop = () => {
-  props.elevatorData.status = props.elevatorData.status === '运行中' ? '已停止' : '运行中';
+// 紧急停止/恢复
+const handleEmergencyStop = () => {
+  if (props.elevatorData.status === '已停止') {
+    elevatorSocketService.resumeOperation(props.elevatorData.id);
+  } else {
+    elevatorSocketService.emergencyStop(props.elevatorData.id);
+  }
 };
 
 // 开关门
 const toggleDoor = () => {
-  if (props.elevatorData.currentFloor === props.elevatorData.targetFloor) {
-    props.elevatorData.doorStatus = props.elevatorData.doorStatus === '关闭' ? '打开' : '关闭';
+  if (props.elevatorData.status === '停止') {
+    elevatorSocketService.toggleDoor(props.elevatorData.id);
   }
 };
 </script>
@@ -57,7 +62,7 @@ const toggleDoor = () => {
       <div class="action-buttons">
         <button 
           class="action-button door-button"
-          :disabled="elevatorData.currentFloor !== elevatorData.targetFloor"
+          :disabled="elevatorData.status !== '停止'"
           @click="toggleDoor()"
         >
           <span class="button-icon">🚪</span>
@@ -66,10 +71,10 @@ const toggleDoor = () => {
         
         <button 
           class="action-button emergency-button"
-          @click="emergencyStop()"
+          @click="handleEmergencyStop()"
         >
           <span class="button-icon">⚠️</span>
-          <span class="button-text">{{ elevatorData.status === '运行中' ? '紧急停止' : '恢复运行' }}</span>
+          <span class="button-text">{{ elevatorData.status === '已停止' ? '恢复运行' : '紧急停止' }}</span>
         </button>
       </div>
     </div>

@@ -1,20 +1,57 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, defineEmits } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls';
 
 const props = defineProps({
-  elevatorData: {
+  animationData: {
     type: Object,
-    required: true
+    default: null,
+  },
+  is360ModeActive: {
+    type: Boolean,
+    default: false
   }
 });
 
+const emit = defineEmits(['toggle-360-mode']);
+
+const cameraMode = ref('follow');
+
+// 系统快捷方式数据
+const systemShortcuts = ref([
+  { name: '曳引系统', icon: '/traction-system-icon.png', route: '/system/sys-001', error: false },
+  { name: '轿门系统', icon: '/door-system-icon.png', route: '/system/sys-004', error: false },
+  { name: '导向系统', icon: '/gui-system-icon.png', route: '/system/sys-002', error: false },
+  { name: '电气系统', icon: '/electri-system-icon.png', route: '/system/sys-003', error: false }
+]);
+
+watch(() => props.is360ModeActive, (isActive) => {
+  cameraMode.value = isActive ? 'orbit' : 'follow';
+});
+
+watch(cameraMode, (newMode) => {
+  if (!camera || !controls) return;
+
+  if (newMode === 'follow') {
+    // 切换到跟随视角
+    const targetY = elevatorCabin.position.y;
+    camera.position.set(0, targetY, 10);
+    controls.target.set(0, targetY, 0);
+  } else {
+    // 切换到360°自由视角
+    camera.position.set(12, 20, 18);
+    controls.target.set(0, 15, 0);
+  }
+});
+
+const toggleCameraMode = () => {
+  // 仅触发事件，让父组件来改变状态
+  emit('toggle-360-mode');
+};
+
 // 电梯仓井DOM引用
 const elevatorContainer = ref(null);
-
-// 相机模式控制
-const cameraMode = ref('follow'); // 'follow' 或 'orbit'
 
 // Three.js 相关变量
 let scene, camera, renderer, controls;
@@ -24,6 +61,7 @@ let frameId = null;
 // 蓝色光效相关变量
 let blueGlow = [];
 let glowTime = 0;
+let cabinStatusLight;
 
 // 电梯尺寸常量
 const SHAFT_WIDTH = 5;
@@ -37,23 +75,29 @@ const FLOOR_COUNT = 15; // 改为15层
 
 // 电梯位置计算 - 从0楼开始
 const elevatorPosition = computed(() => {
-  const { currentFloor } = props.elevatorData;
-  // 计算电梯所在的位置（从底部计算）
+  if (!props.animationData) return CABIN_HEIGHT / 2; // 默认停在1楼
+  const { currentFloor } = props.animationData;
   return (currentFloor - 1) * FLOOR_HEIGHT + CABIN_HEIGHT/2;
 });
 
 // 电梯门状态
-const doorOpen = computed(() => props.elevatorData.doorStatus === '打开');
+const doorOpen = computed(() => props.animationData?.doorStatus === '打开');
 
 // 电梯运行状态
 const isMoving = computed(() => {
-  return props.elevatorData.currentFloor !== props.elevatorData.targetFloor;
+  return props.animationData.currentFloor !== props.animationData.targetFloor;
 });
 
 // 电梯运动方向
 const elevatorDirection = computed(() => {
   if (!isMoving.value) return 0; // 静止
-  return props.elevatorData.targetFloor > props.elevatorData.currentFloor ? 1 : -1; // 1表示向上，-1表示向下
+  return props.animationData.targetFloor > props.animationData.currentFloor ? 1 : -1; // 1表示向上，-1表示向下
+});
+
+// 电梯运行状态
+const elevatorStatus = computed(() => {
+  if (!props.animationData) return '未连接';
+  return props.animationData.status || '停止';
 });
 
 // 初始化Three.js场景
@@ -297,6 +341,19 @@ const createElevatorCabin = () => {
   
   // 定位电梯箱（初始位置在1楼，完全贴合地面）
   elevatorCabin.position.y = 0;
+  
+  // 轿厢内部的状态指示灯 (使用更安全的方式)
+  const lightGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+  // 使用StandardMaterial并设置emissive属性，使其自发光但又不影响其他物体
+  const lightMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff, // 材质本身颜色
+      emissive: 0xffffff, // 自发光颜色
+      emissiveIntensity: 1 // 初始自发光强度
+  });
+  cabinStatusLight = new THREE.Mesh(lightGeometry, lightMaterial);
+  cabinStatusLight.position.set(0, CABIN_HEIGHT - 0.3, 0);
+  
+  elevatorCabin.add(cabinStatusLight);
   scene.add(elevatorCabin);
   
   // 添加电梯轿厢顶部
@@ -760,8 +817,8 @@ const updateScene = () => {
 
   // 更新楼层指示灯
   floorLights.forEach((light, index) => {
-    const isCurrentFloor = index + 1 === props.elevatorData.currentFloor;
-    const isTargetFloor = index + 1 === props.elevatorData.targetFloor;
+    const isCurrentFloor = index + 1 === props.animationData.currentFloor;
+    const isTargetFloor = index + 1 === props.animationData.targetFloor;
     
     let color = 0x888888; // 默认更亮的灰色
     let emissiveColor = 0x444444;
@@ -794,6 +851,23 @@ const updateScene = () => {
 // 动画循环
 const animate = () => {
   updateScene();
+
+  if (cabinStatusLight) {
+    let color = 0x6c7086; // 默认灰色 (未连接)
+    let intensity = 1.0;
+    if(props.animationData) {
+        switch (elevatorStatus.value) {
+            case '运行中': color = 0x00bfff; intensity = 2.0; break;
+            case '故障': color = Math.floor(performance.now() / 500) % 2 === 0 ? 0xff0000 : 0x550000; intensity = 2.0; break;
+            case '维修中': color = 0xffa500; intensity = 1.5; break;
+            case '停止': color = 0xffffff; break;
+        }
+    }
+    cabinStatusLight.material.color.setHex(color);
+    cabinStatusLight.material.emissive.setHex(color);
+    cabinStatusLight.material.emissiveIntensity = intensity;
+  }
+  
   renderer.render(scene, camera);
   frameId = requestAnimationFrame(animate);
 };
@@ -836,67 +910,24 @@ onBeforeUnmount(() => {
     }
   }
 });
-
-// 切换相机模式
-const toggleCameraMode = () => {
-  cameraMode.value = cameraMode.value === 'follow' ? 'orbit' : 'follow';
-  
-  // 重置相机位置
-  if (cameraMode.value === 'orbit') {
-    // 轨道模式 - 设置更远的俯视视角
-    camera.position.set(12, 20, 18);
-    controls.target.set(0, 15, 0);
-  } else {
-    // 跟随模式 - 设置平视视角
-    if (elevatorCabin) {
-      // 平视视角 - 相机位于电梯同一高度，稍微偏移
-      const elevatorY = elevatorCabin.position.y;
-      camera.position.set(10, elevatorY, 0); // 侧面平视电梯
-      controls.target.set(0, elevatorY, 0); // 看向电梯中心
-    } else {
-      camera.position.set(10, 5, 0);
-      controls.target.set(0, 5, 0);
-    }
-  }
-  
-  controls.update();
-};
 </script>
 
 <template>
   <div class="elevator-visualizer">
-    <div class="elevator-3d-container" ref="elevatorContainer"></div>
-    
-    <div class="system-shortcuts">
-      <div 
-        v-for="system in elevatorData.systems" 
-        :key="system.id"
-        class="system-shortcut"
-        :class="{'system-error': system.status === '故障'}"
-        @click="$emit('system-click', system.id)"
-      >
-        <div class="shortcut-icon">
-          <!-- 使用图片替换所有系统图标 -->
-          <img v-if="system.name === '曳引系统'" src="/traction-system-icon.png" class="custom-icon" alt="曳引系统" />
-          <img v-else-if="system.name.includes('导向')" src="/gui-system-icon.png" class="custom-icon" alt="导向系统" />
-          <img v-else-if="system.name.includes('控制')" src="/electri-system-icon.png" class="custom-icon" alt="电气控制系统" />
-          <img v-else-if="system.name.includes('门')" src="/door-system-icon.png" class="custom-icon" alt="门系统" />
-          
-          <!-- 状态指示点 -->
-          <div class="status-dot" :class="{
-            'status-normal': system.status === '正常',
-            'status-warning': system.status === '警告',
-            'status-error': system.status === '故障'
-          }"></div>
-        </div>
-        <div class="shortcut-info">
-          <div class="shortcut-name">{{ system.name }}</div>
-        </div>
+    <div class="elevator-3d-container" ref="elevatorContainer">
+      <div v-if="!animationData" class="waiting-text-overlay">
+        <p>等待后端数据...</p>
       </div>
     </div>
-    
+    <!-- 系统快捷方式 -->
+    <div class="system-shortcuts">
+      <router-link v-for="system in systemShortcuts" :key="system.name" :to="system.route" class="system-shortcut" :class="{ 'system-error': system.error }">
+        <img :src="system.icon" :alt="system.name" class="system-icon">
+        <span>{{ system.name }}</span>
+      </router-link>
+    </div>
     <button class="camera-toggle-btn" @click="toggleCameraMode">
-      {{ cameraMode === 'follow' ? '跟随模式' : '360°展示模式' }}
+      {{ cameraMode === 'follow' ? '跟随视角' : '360°自由视角' }}
     </button>
   </div>
 </template>
@@ -924,7 +955,7 @@ const toggleCameraMode = () => {
   flex-direction: column;
   gap: 15px;
   z-index: 10;
-  width: 100px;
+  width: 120px;
 }
 
 .system-shortcut {
@@ -935,6 +966,21 @@ const toggleCameraMode = () => {
   padding: 5px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  color: #a7d5ff; /* 字体颜色 */
+  text-decoration: none; /* 去掉下划线 */
+  font-size: 14px;
+}
+
+.system-shortcut .system-icon {
+  width: 65px; /* 调整图标大小，从48px改为65px */
+  height: 65px;
+  margin-bottom: 5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.system-shortcut:hover .system-icon {
+  filter: drop-shadow(0 0 10px #3399ff);
+  transform: scale(1.1);
 }
 
 .system-shortcut:hover {
@@ -1050,11 +1096,22 @@ const toggleCameraMode = () => {
   object-fit: contain;
 }
 
-
-
 @keyframes gentle-pulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
+}
+
+.waiting-text-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #cdd6f4;
+  background-color: rgba(10, 25, 47, 0.7);
+  padding: 10px 20px;
+  border-radius: 8px;
+  z-index: 5;
+  pointer-events: none; /* 允许点击穿透 */
 }
 </style>

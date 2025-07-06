@@ -1,5 +1,14 @@
 <script setup>
-import { ref } from 'vue';
+import { computed } from 'vue';
+
+// 定义props，接收父组件传递的状态
+const props = defineProps({
+  analysisStep: {
+    type: String,
+    required: true,
+    default: 'idle' // 'idle', 'simulating', 'analyzing'
+  }
+});
 
 // 获取当前年份
 const currentYear = new Date().getFullYear();
@@ -7,31 +16,34 @@ const currentYear = new Date().getFullYear();
 // 触发异常数据生成的事件
 const emits = defineEmits(['generate-abnormal-data']);
 
-// 按钮状态
-const isGeneratingAbnormal = ref(false);
-// 选中的系统类型
-const selectedSystem = ref('traction');
+// 系统类型列表，用于随机选择
+const systemTypes = ['traction', 'guidance', 'electrical', 'door'];
 
-// 系统类型选项
-const systemOptions = [
-  { value: 'traction', label: '曳引系统' },
-  { value: 'guidance', label: '导向系统' },
-  { value: 'electrical', label: '电气系统' },
-  { value: 'door', label: '门系统' }
-];
+// 根据外部状态计算按钮文本
+const buttonText = computed(() => {
+  switch (props.analysisStep) {
+    case 'simulating':
+      return '正在模拟异常...';
+    case 'analyzing':
+      return 'AI正在分析中...';
+    default:
+      return 'AI模拟异常';
+  }
+});
+
+// 根据外部状态判断按钮是否禁用
+const isButtonDisabled = computed(() => props.analysisStep !== 'idle');
 
 // 点击模拟异常按钮
 const handleGenerateAbnormal = () => {
-  console.log(`模拟${selectedSystem.value}系统异常`);
-  isGeneratingAbnormal.value = true;
+  if (isButtonDisabled.value) return;
+
+  // 随机选择一个系统类型
+  const randomIndex = Math.floor(Math.random() * systemTypes.length);
+  const selectedSystem = systemTypes[randomIndex];
   
   // 触发生成异常数据事件，传递系统类型
-  emits('generate-abnormal-data', selectedSystem.value);
-  
-  // 3秒后重置按钮状态
-  setTimeout(() => {
-    isGeneratingAbnormal.value = false;
-  }, 3000);
+  emits('generate-abnormal-data', selectedSystem);
 };
 </script>
 
@@ -60,22 +72,17 @@ const handleGenerateAbnormal = () => {
     
     <div class="footer-right">
       <div class="abnormal-controls">
-        <select v-model="selectedSystem" class="system-select">
-          <option v-for="option in systemOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
         <button 
           @click="handleGenerateAbnormal" 
           class="simulate-abnormal-btn"
-          :class="{ 'active': isGeneratingAbnormal }"
-          :disabled="isGeneratingAbnormal"
+          :class="{ 'active': isButtonDisabled }"
+          :disabled="isButtonDisabled"
         >
-          <span class="btn-icon">⚠️</span>
-          {{ isGeneratingAbnormal ? '正在模拟...' : '模拟异常' }}
+          <span class="btn-icon">🤖</span>
+          {{ buttonText }}
         </button>
       </div>
-      <div class="version">版本 1.0.0</div>
+      <div class="version">版本 1.1.0</div>
     </div>
   </div>
 </template>
@@ -106,32 +113,57 @@ const handleGenerateAbnormal = () => {
   gap: 10px;
 }
 
-.system-select {
-  background: rgba(0, 0, 0, 0.3);
-  color: #fff;
-  border: 1px solid rgba(64, 128, 255, 0.5);
+.simulate-abnormal-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
   border-radius: 4px;
-  padding: 5px 8px;
-  font-size: 0.85rem;
+  border: 1px solid rgba(0, 150, 136, 0.5);
+  background: linear-gradient(45deg, rgba(0, 150, 136, 0.2), rgba(38, 166, 154, 0.3));
+  color: #fff;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.system-select:focus {
-  outline: none;
-  border-color: rgba(64, 128, 255, 0.8);
-  box-shadow: 0 0 0 2px rgba(64, 128, 255, 0.2);
+.simulate-abnormal-btn:hover:not(:disabled) {
+  background: linear-gradient(45deg, rgba(0, 150, 136, 0.3), rgba(38, 166, 154, 0.4));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.simulate-abnormal-btn.active {
+  background: linear-gradient(45deg, rgba(0, 188, 212, 0.3), rgba(0, 229, 255, 0.4));
+  border-color: rgba(0, 188, 212, 0.6);
+  animation: pulse 1.5s infinite;
+}
+
+.simulate-abnormal-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 188, 212, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(0, 188, 212, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 188, 212, 0);
+  }
 }
 
 .footer-center {
-  flex: 2;
   display: flex;
   justify-content: center;
-}
-
-.copyright, .version {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  flex: 2;
 }
 
 .system-status {
@@ -146,43 +178,48 @@ const handleGenerateAbnormal = () => {
 }
 
 .status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background-color: #2196f3;
-  box-shadow: 0 0 5px rgba(33, 150, 243, 0.7);
+  background-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  position: relative;
+}
+
+.status-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: rgba(76, 175, 80, 0.4);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 .status-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  color: #e0e0e0;
 }
 
-.simulate-abnormal-btn {
-  background: rgba(255, 59, 48, 0.2);
-  color: #fff;
-  border: 1px solid rgba(255, 59, 48, 0.5);
-  border-radius: 4px;
-  padding: 5px 12px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.simulate-abnormal-btn:hover {
-  background: rgba(255, 59, 48, 0.4);
-}
-
-.simulate-abnormal-btn.active {
-  background: rgba(255, 59, 48, 0.6);
-  cursor: not-allowed;
-}
-
-.btn-icon {
-  font-size: 0.9rem;
+.copyright, .version {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
 }
 </style>
