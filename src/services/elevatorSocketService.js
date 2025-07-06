@@ -1,4 +1,4 @@
-const WEBSOCKET_URL = 'ws://localhost:8080/ws/elevator/status'; // 后端WebSocket服务器地址
+const WEBSOCKET_URL = 'ws://10.181.198.148:8080/ws/elevator'; // 后端WebSocket服务器地址
 
 class ElevatorSocketService {
   constructor() {
@@ -18,7 +18,7 @@ class ElevatorSocketService {
       return;
     }
 
-    const url = `${WEBSOCKET_URL}/${elevatorId}`;
+    const url = `${WEBSOCKET_URL}/status/${elevatorId}`;
     this.socket = new WebSocket(url);
     this.messageListener = onMessageCallback;
 
@@ -48,15 +48,72 @@ class ElevatorSocketService {
   }
 
   /**
+   * 发送通用指令到服务器
+   * @param {object} commandPayload - 要发送的指令负载
+   */
+  sendCommand(commandPayload) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(commandPayload));
+    } else {
+      console.error('WebSocket is not connected. Cannot send command.');
+    }
+  }
+
+  /**
+   * 指示电梯去往指定楼层
+   * @param {string} elevatorId - 电梯ID
+   * @param {number} floor - 目标楼层
+   */
+  goToFloor(elevatorId, floor) {
+    this.sendCommand({
+      elevatorId,
+      command: 'GOTO_FLOOR',
+      floor: floor,
+    });
+  }
+
+  /**
+   * 切换电梯门状态 (开/关)
+   * @param {string} elevatorId - 电梯ID
+   */
+  toggleDoor(elevatorId) {
+    this.sendCommand({
+      elevatorId,
+      command: 'TOGGLE_DOOR',
+    });
+  }
+
+  /**
+   * 紧急停止电梯
+   * @param {string} elevatorId - 电梯ID
+   */
+  emergencyStop(elevatorId) {
+    this.sendCommand({
+      elevatorId,
+      command: 'EMERGENCY_STOP',
+    });
+  }
+
+  /**
+   * 恢复电梯运行
+   * @param {string} elevatorId - 电梯ID
+   */
+  resumeOperation(elevatorId) {
+    this.sendCommand({
+      elevatorId,
+      command: 'RESUME_OPERATION',
+    });
+  }
+
+
+  /**
    * 发送消息到服务器
    * @param {any} data - 要发送的数据
+   * @deprecated Use sendCommand or specific command methods instead.
    */
   sendMessage(data) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(data));
-    } else {
-      console.error('WebSocket is not connected.');
-    }
+    console.warn("sendMessage is deprecated. Use sendCommand or specific command methods like goToFloor instead.");
+    this.sendCommand(data);
   }
 
   /**
