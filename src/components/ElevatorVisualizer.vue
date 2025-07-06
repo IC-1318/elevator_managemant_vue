@@ -11,19 +11,37 @@ const props = defineProps({
   is360ModeActive: {
     type: Boolean,
     default: false
+  },
+  systems: {
+    type: Array,
+    default: () => []
   }
 });
 
-defineEmits(['toggle-360-mode']);
+const emit = defineEmits(['toggle-360-mode', 'system-click']);
 
 const cameraMode = ref('follow');
 
 watch(() => props.is360ModeActive, (isActive) => {
   cameraMode.value = isActive ? 'orbit' : 'follow';
+
+  // 强制重置相机状态，解决视角保留和角度错乱问题
+  if (isActive) {
+    // 切换到360°自由视角
+    controls.autoRotate = true;
+    controls.target.set(0, 15, 0); // 目标对准电梯井中心
+    camera.position.set(15, 25, 22); // 设置为俯瞰位置
+  } else {
+    // 切换回跟随视角
+    controls.autoRotate = false;
+    // 重置到跟随位置，具体Y轴由updateScene平滑处理
+    const targetY = elevatorCabin ? elevatorCabin.position.y : 5;
+    camera.position.set(0, targetY, 10);
+    controls.target.set(0, targetY, 0);
+  }
 });
 
 const toggleCameraMode = () => {
-  // 仅触发事件，让父组件来改变状态
   emit('toggle-360-mode');
 };
 
@@ -96,17 +114,10 @@ const initThreeJS = () => {
     scene = new THREE.Scene();
     scene.background = null; // 透明背景
     
-    // 相机设置 - 调整位置更好地观察电梯
+    // 相机设置 - 仅设置一个默认初始位置
     camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    
-    // 默认使用平视视角 - 调整为面向楼层数字的视角（后墙面）
-    if (cameraMode.value === 'follow') {
-      camera.position.set(0, 5, 10); // 正面平视 (z轴正方向看向楼层数字)
-      camera.lookAt(0, 5, -2); // 看向电梯内部偏后墙方向
-    } else {
-      camera.position.set(12, 20, 18); // 俯视角度
-      camera.lookAt(0, 15, 0); // 看向电梯中部
-    }
+    camera.position.set(0, 5, 10); // 默认从"跟随视角"开始
+    camera.lookAt(0, 5, 0);
     
     console.log('相机初始化模式:', cameraMode.value, '位置:', camera.position);
     
@@ -183,7 +194,7 @@ const initThreeJS = () => {
     controls.maxDistance = 50;
     controls.maxPolarAngle = Math.PI * 0.9; // 限制相机角度，避免穿过底面
     controls.target.set(0, 15, 0); // 设置控制中心点在电梯中部
-    controls.autoRotate = true; // 启用自动旋转
+    controls.autoRotate = false; // 默认禁用自动旋转，因为初始是跟随视角
     controls.autoRotateSpeed = 0.5; // 设置自动旋转速度
     controls.update();
     
@@ -756,28 +767,14 @@ const updateScene = () => {
     const targetY = elevatorPosition.value;
     elevatorCabin.position.y += (targetY - elevatorCabin.position.y) * 0.05;
     
-    // 根据相机模式更新相机位置
+    // 根据相机模式持续更新
     if (cameraMode.value === 'follow') {
-      // 更新相机位置，使其平视跟随电梯箱
-      // 计算相机目标高度，与电梯保持同一高度
-      const cameraTargetY = elevatorCabin.position.y; // 相机与电梯在同一高度
-      
-      // 平滑过渡相机位置
+      // 在跟随模式下，让相机和目标点平滑地跟随电梯的高度
+      const cameraTargetY = elevatorCabin.position.y;
       camera.position.y += (cameraTargetY - camera.position.y) * 0.05;
-      
-      // 更新相机看向的目标点，始终看向电梯中心
-      controls.target.set(0, elevatorCabin.position.y, 0);
-      
-      // 禁用自动旋转
-      controls.autoRotate = false;
-    } else {
-      // 360展示模式
-      // 启用自动旋转
-      controls.autoRotate = true;
-      
-      // 固定看向电梯中部
-      controls.target.set(0, 15, 0);
+      controls.target.y += (cameraTargetY - controls.target.y) * 0.05;
     }
+    // 在360°模式下，相机位置和目标点由watcher在切换时一次性设定，此处无需操作
   }
 
   // 更新电梯门状态
@@ -894,6 +891,20 @@ onBeforeUnmount(() => {
     <div class="elevator-3d-container" ref="elevatorContainer">
       <div v-if="!animationData" class="waiting-text-overlay">
         <p>等待后端数据...</p>
+      </div>
+    </div>
+    <div class="system-shortcuts">
+      <div v-for="system in systems" :key="system.id" 
+           class="system-shortcut"
+           :class="{'system-error': system.status !== '正常'}"
+           @click="$emit('system-click', system.id)">
+        <div class="shortcut-icon">
+          <img :src="system.icon" :alt="system.name" class="custom-icon">
+          <div class="status-dot" :class="`status-${system.status === '正常' ? 'normal' : 'error'}`"></div>
+        </div>
+        <div class="shortcut-info">
+          <span class="shortcut-name">{{ system.name }}</span>
+        </div>
       </div>
     </div>
     <button class="camera-toggle-btn" @click="toggleCameraMode">

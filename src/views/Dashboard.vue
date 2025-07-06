@@ -32,7 +32,12 @@ const elevatorData = ref({
   operatingHours: 5231,
   energyConsumption: 45.2,
   floorCount: 15,
-  systems: [ /* 初始系统数据可以保留或从API获取 */ ]
+  systems: [
+    { id: 'sys-001', name: '曳引系统', icon: '/traction-system-icon.png', status: '正常' },
+    { id: 'sys-002', name: '导向系统', icon: '/gui-system-icon.png', status: '正常' },
+    { id: 'sys-003', name: '电气系统', icon: '/electri-system-icon.png', status: '正常' },
+    { id: 'sys-004', name: '门系统', icon: '/door-system-icon.png', status: '正常' }
+  ]
 });
 
 // 新增：用于存储来自后端WebSocket的、专供3D可视化的数据
@@ -161,7 +166,8 @@ const handleCenterRepairComplete = () => {
         <div class="tech-decoration"></div>
       </div>
       <ElevatorVisualizer 
-        :animationData="dataForVisualizer" 
+        :animationData="dataForVisualizer"
+        :systems="elevatorData.systems"
         :is-360-mode-active="is360ModeActive"
         @toggle-360-mode="toggle360Mode"
         @system-click="navigateToSystemDetail"
