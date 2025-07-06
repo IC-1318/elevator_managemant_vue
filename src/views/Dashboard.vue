@@ -9,23 +9,23 @@ import AICenterNotification from '../components/AICenterNotification.vue';
 import AbnormalDataLog from '../components/AbnormalDataLog.vue';
 import DataCollectionService from '../services/DataCollectionService';
 import elevatorSocketService from '../services/elevatorSocketService';
-import { useElevatorSimulation } from '../composables/useElevatorSimulation.js';
+// import { useElevatorSimulation } from '../composables/useElevatorSimulation.js'; // 移除前端模拟
 import { useAIAnalysis } from '../composables/useAIAnalysis.js';
 
 const router = useRouter();
 
-// 电梯核心状态数据 (由前端模拟驱动)
-const elevatorData = ref({
+// 电梯核心状态数据 (由后端WebSocket驱动)
+const elevatorState = ref({
   id: 'EL-001',
   currentFloor: 1,
-  targetFloor: 5,
-  status: '运行中',
-  speed: 2.5,
-  direction: '上行',
+  targetFloor: 1,
+  status: '未连接',
+  speed: 0,
+  direction: '无',
   doorStatus: '关闭',
-  loadWeight: 320,
+  loadWeight: 0,
   maxWeight: 1000,
-  temperature: 24.5,
+  temperature: 22.5,
   maintenanceStatus: '正常',
   lastMaintenance: '2023-12-15',
   totalTrips: 12543,
@@ -35,32 +35,16 @@ const elevatorData = ref({
   systems: [ /* 初始系统数据可以保留或从API获取 */ ]
 });
 
-// 新增：用于存储来自后端WebSocket的、专供3D可视化的数据
-const visualizerData = ref(null);
-
-// 计算属性：优先使用后端可视化数据，如果不存在则回退到前端模拟数据
-const dataForVisualizer = computed(() => visualizerData.value || elevatorData.value);
-
 const elevatorRunning = ref(true);
 
-// 使用前端模拟 Composable
-const { startSimulation } = useElevatorSimulation(elevatorData, elevatorRunning);
-let simulationInterval = null;
-
-// 核心控制功能
+// 核心控制功能 (保留AI分析可能需要的启停)
 const stopElevator = () => {
-  console.log('严重故障，停止电梯运行');
-  elevatorRunning.value = false;
-  elevatorData.value.status = '停止运行';
+  console.log('严重故障，通过AI分析停止电梯');
+  elevatorSocketService.emergencyStop(elevatorState.value.id);
 };
 const resumeElevator = () => {
-  console.log('维修完成，恢复电梯运行');
-  elevatorRunning.value = true;
-  elevatorData.value.status = '运行中';
-  elevatorData.value.systems.forEach(system => {
-    system.status = '正常';
-    system.faultCode = '无';
-  });
+  console.log('维修完成，通过AI分析恢复电梯运行');
+  elevatorSocketService.resumeOperation(elevatorState.value.id);
 };
 
 // 使用AI分析 Composable
@@ -103,25 +87,18 @@ const navigateToSystemDetail = (systemId) => {
 
 // 处理WebSocket消息的回调函数
 const handleElevatorDataUpdate = (data) => {
-  // 只更新用于可视化的数据
-  visualizerData.value = data;
+  // 完全使用后端数据更新状态
+  Object.assign(elevatorState.value, data);
 };
 
 // 组件挂载后
 onMounted(() => {
-  // 启动前端自己的数据模拟
-  simulationInterval = startSimulation();
-  // 连接WebSocket以获取后端可视化数据
-  elevatorSocketService.connect(elevatorData.value.id, handleElevatorDataUpdate);
+  // 连接WebSocket以获取后端数据
+  elevatorSocketService.connect(elevatorState.value.id, handleElevatorDataUpdate);
 });
 
 // 清理函数
 onBeforeUnmount(() => {
-  // 停止前端模拟
-  if (simulationInterval) {
-    clearInterval(simulationInterval);
-    simulationInterval = null;
-  }
   // 断开WebSocket连接
   elevatorSocketService.disconnect();
 });
@@ -146,14 +123,14 @@ const handleCenterRepairComplete = () => {
 
 <template>
   <div class="dashboard">
-    <HeaderPanel class="header" :elevatorId="elevatorData.id" />
+    <HeaderPanel class="header" :elevatorId="elevatorState.id" />
     
     <div class="sidebar panel">
       <div class="panel-header">
         <h2 class="panel-title tech-text">控制面板</h2>
         <div class="tech-decoration"></div>
       </div>
-      <ControlPanel :elevatorData="elevatorData" />
+      <ControlPanel :elevatorData="elevatorState" />
     </div>
     
     <div class="main panel">
@@ -161,7 +138,7 @@ const handleCenterRepairComplete = () => {
         <div class="tech-decoration"></div>
       </div>
       <ElevatorVisualizer 
-        :animationData="dataForVisualizer" 
+        :animationData="elevatorState" 
         :is-360-mode-active="is360ModeActive"
         @toggle-360-mode="toggle360Mode"
         @system-click="navigateToSystemDetail"

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, defineEmits } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls';
 
@@ -14,12 +14,35 @@ const props = defineProps({
   }
 });
 
-defineEmits(['toggle-360-mode']);
+const emit = defineEmits(['toggle-360-mode']);
 
 const cameraMode = ref('follow');
 
+// 系统快捷方式数据
+const systemShortcuts = ref([
+  { name: '曳引系统', icon: '/traction-system-icon.png', route: '/system/sys-001', error: false },
+  { name: '轿门系统', icon: '/door-system-icon.png', route: '/system/sys-004', error: false },
+  { name: '导向系统', icon: '/gui-system-icon.png', route: '/system/sys-002', error: false },
+  { name: '电气系统', icon: '/electri-system-icon.png', route: '/system/sys-003', error: false }
+]);
+
 watch(() => props.is360ModeActive, (isActive) => {
   cameraMode.value = isActive ? 'orbit' : 'follow';
+});
+
+watch(cameraMode, (newMode) => {
+  if (!camera || !controls) return;
+
+  if (newMode === 'follow') {
+    // 切换到跟随视角
+    const targetY = elevatorCabin.position.y;
+    camera.position.set(0, targetY, 10);
+    controls.target.set(0, targetY, 0);
+  } else {
+    // 切换到360°自由视角
+    camera.position.set(12, 20, 18);
+    controls.target.set(0, 15, 0);
+  }
 });
 
 const toggleCameraMode = () => {
@@ -896,6 +919,13 @@ onBeforeUnmount(() => {
         <p>等待后端数据...</p>
       </div>
     </div>
+    <!-- 系统快捷方式 -->
+    <div class="system-shortcuts">
+      <router-link v-for="system in systemShortcuts" :key="system.name" :to="system.route" class="system-shortcut" :class="{ 'system-error': system.error }">
+        <img :src="system.icon" :alt="system.name" class="system-icon">
+        <span>{{ system.name }}</span>
+      </router-link>
+    </div>
     <button class="camera-toggle-btn" @click="toggleCameraMode">
       {{ cameraMode === 'follow' ? '跟随视角' : '360°自由视角' }}
     </button>
@@ -925,7 +955,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 15px;
   z-index: 10;
-  width: 100px;
+  width: 120px;
 }
 
 .system-shortcut {
@@ -936,6 +966,21 @@ onBeforeUnmount(() => {
   padding: 5px;
   cursor: pointer;
   transition: transform 0.2s ease;
+  color: #a7d5ff; /* 字体颜色 */
+  text-decoration: none; /* 去掉下划线 */
+  font-size: 14px;
+}
+
+.system-shortcut .system-icon {
+  width: 65px; /* 调整图标大小，从48px改为65px */
+  height: 65px;
+  margin-bottom: 5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.system-shortcut:hover .system-icon {
+  filter: drop-shadow(0 0 10px #3399ff);
+  transform: scale(1.1);
 }
 
 .system-shortcut:hover {
