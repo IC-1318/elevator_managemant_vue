@@ -3,66 +3,77 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import TechGridBackground from '../components/TechGridBackground.vue';
 import { useAIAnalysis } from '../composables/useAIAnalysis.js';
+import { getLifetimeAnalysis } from '../api/aiSimulation.js'; // 引入API
 
 const router = useRouter();
 const isAIExpanded = ref(false);
 const isDetailedAnalysisOpen = ref(false);
 const isLoading = ref(false);
 const detailedAnalysis = ref('');
+const mainAnalysis = ref('点击获取分析'); // 用于存储main字段
+const fullMessage = ref(''); // 用于存储message字段
+let typingInterval = null; // 用于控制打字机效果的定时器
 
 // 切换AI分析展开状态
-const toggleAIAnalysis = () => {
+const toggleAIAnalysis = async () => {
   isAIExpanded.value = !isAIExpanded.value;
-  if (isAIExpanded.value) {
-    // 当展开时，请求简要AI分析
+  if (isAIExpanded.value && !fullMessage.value) { // 仅在展开且没有数据时请求
     isLoading.value = true;
-    setTimeout(() => {
+    try {
+      const response = await getLifetimeAnalysis();
+      if (response && response.data) {
+        mainAnalysis.value = response.data.main;
+        fullMessage.value = response.data.message;
+      } else {
+        mainAnalysis.value = "获取分析失败";
+      }
+    } catch (error) {
+      console.error("获取AI寿命分析失败:", error);
+      mainAnalysis.value = "获取分析失败，请检查网络";
+    } finally {
       isLoading.value = false;
-    }, 800);
+    }
   }
 };
 
 // 请求详细AI分析
 const requestDetailedAnalysis = () => {
   isDetailedAnalysisOpen.value = true;
-  isLoading.value = true;
+  detailedAnalysis.value = ''; // 清空上一次的内容
   
-  // 模拟请求详细AI分析
-  setTimeout(() => {
-    detailedAnalysis.value = `基于当前系统状态的深度分析：
-    
-1. 性能评估：
-   - 系统健康度评分为${systemHealth.value.score}%，表现${systemHealth.value.status}
-   - 存在${systemInfo.value.activeAlerts}个活跃警报需要立即处理
-   - ${systemInfo.value.pendingMaintenance}台电梯处于待维护状态
-   
-2. 风险分析：
-   - 5号电梯振动参数超标12%，建议72小时内进行检修
-   - 3号电梯门系统响应时间延长，可能存在卡阻风险
-   - 8号电梯能耗指标异常，可能存在电气系统问题
-   
-3. 优化建议：
-   - 建议调整7号电梯的运行曲线以降低峰值功耗
-   - 2号和4号电梯可调整楼层等待时间，优化高峰期运行效率
-   - 建议对1号电梯进行润滑油更换，预防性维护
-   
-4. 预测性分析：
-   - 根据当前使用模式，预计下一次系统维护窗口为15天后
-   - 预测下周五将出现乘客高峰期，建议提前调整电梯配置
-   - 基于历史数据，预计3号电梯将在25天内达到维护阈值
+  // 停止上一次可能还在进行的打字机效果
+  if (typingInterval) {
+    clearInterval(typingInterval);
+  }
 
-5. 长期规划：
-   - 建议更新电梯群控算法，预计可提升整体效率8.5%
-   - 考虑对老旧电梯组件进行现代化改造，延长使用寿命
-   - 建议实施预测性维护计划，可减少计划外停机时间约22%`;
-    
-    isLoading.value = false;
-  }, 1500);
+  let index = 0;
+  const messageToType = fullMessage.value;
+
+  if (!messageToType) {
+    detailedAnalysis.value = "无详细分析内容。";
+    return;
+  }
+
+  // 使用定时器创建“假流式”打字机效果
+  typingInterval = setInterval(() => {
+    if (index < messageToType.length) {
+      detailedAnalysis.value += messageToType.charAt(index);
+      index++;
+    } else {
+      clearInterval(typingInterval);
+      typingInterval = null;
+    }
+  }, 50); // 每个字出现的间隔时间
 };
 
 // 关闭详细分析面板
 const closeDetailedAnalysis = () => {
   isDetailedAnalysisOpen.value = false;
+  // 关闭面板时也停止打字效果
+  if (typingInterval) {
+    clearInterval(typingInterval);
+    typingInterval = null;
+  }
 };
 
 // 管理员信息
@@ -269,28 +280,30 @@ const handleQuickActionClick = (route) => {
             </div>
             
             <!-- AI分析部分 -->
-            <div class="system-ai-analysis">
-              <div class="ai-toggle" @click="toggleAIAnalysis">
-                <span class="ai-icon">🤖</span>
-                <span class="ai-label">AI 分析</span>
-                <span class="ai-arrow" :class="{ 'expanded': isAIExpanded }">▼</span>
-              </div>
-              
-              <div class="ai-content" v-if="isAIExpanded">
-                <div v-if="isLoading" class="ai-loading">
-                  <div class="spinner"></div>
-                  <span>分析中...</span>
+            <div class="admin-ai-panel panel" :class="{ 'expanded': isAIExpanded }">
+              <div class="panel-header" @click="toggleAIAnalysis">
+                <div class="ai-icon-wrapper">
+                  <span class="ai-icon">🤖</span>
                 </div>
-                <div v-else class="ai-recommendation">
-                  <h4>AI 系统建议</h4>
-                  <div class="ai-message">{{ aiRecommendation }}</div>
-                  
-                  <div class="ai-actions">
-                    <button class="ai-button" @click="requestDetailedAnalysis">
-                      <span>详细分析</span>
-                      <span class="button-icon">▶</span>
-                    </button>
-                  </div>
+                <h3 class="panel-title tech-text">
+                  <span class="ai-label">电梯寿命预测分析</span>
+                </h3>
+                <div class="tech-decoration"></div>
+                <button class="expand-button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </div>
+              <div class="ai-content">
+                <div class="ai-summary">
+                  <p v-if="isLoading">正在分析中...</p>
+                  <p v-else>{{ mainAnalysis }}</p>
+                </div>
+                <div class="ai-actions">
+                  <button class="action-btn detail-btn" @click="requestDetailedAnalysis">
+                    详细分析 ►
+                  </button>
                 </div>
               </div>
             </div>
@@ -654,16 +667,23 @@ const handleQuickActionClick = (route) => {
 }
 
 /* AI分析部分样式 */
-.system-ai-analysis {
+.admin-ai-panel {
   margin-top: 2vh;
   border-top: 1px solid rgba(33, 150, 243, 0.3);
   padding-top: 2vh;
+  transition: all 0.3s ease-in-out;
 }
 
-.ai-toggle {
+.admin-ai-panel.expanded {
+  height: auto; /* 展开时高度自适应 */
+  min-height: 100%; /* 确保展开时高度至少为面板高度 */
+  padding-bottom: 2vh; /* 展开时底部有更多空间 */
+}
+
+.panel-header {
   display: flex;
   align-items: center;
-  background: rgba(33, 150, 243, 0.1);
+  background: rgba(33, 150, 243, 0.05);
   padding: 1vh 1.5vw;
   border-radius: 8px;
   cursor: pointer;
@@ -672,27 +692,48 @@ const handleQuickActionClick = (route) => {
   width: 100%; /* 增加宽度到100%，使框更长 */
 }
 
-.ai-toggle:hover {
-  background: rgba(33, 150, 243, 0.2);
+.panel-header:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.ai-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(33, 150, 243, 0.1);
+  border-radius: 50%;
+  margin-right: 15px;
+  color: #4dabf5;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
 }
 
 .ai-icon {
-  font-size: 1.4rem;
-  margin-right: 1vw;
+  font-size: 1.8rem;
 }
 
 .ai-label {
   flex: 1;
   font-weight: 500;
   color: #4dabf5;
+  font-size: 1rem;
 }
 
-.ai-arrow {
-  font-size: 0.8rem;
+.expand-button {
+  background: none;
+  border: none;
+  color: #4dabf5;
+  font-size: 1.2rem;
+  cursor: pointer;
   transition: transform 0.3s;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ai-arrow.expanded {
+.expand-button:hover {
   transform: rotate(180deg);
 }
 
@@ -707,18 +748,13 @@ const handleQuickActionClick = (route) => {
   width: 100%; /* 确保内容区域也是100%宽度 */
 }
 
-.ai-recommendation h4 {
-  margin: 0 0 1vh 0;
-  color: #4dabf5;
-  font-size: 1rem;
-}
-
-.ai-message {
+.ai-summary {
   font-size: 0.9rem;
   line-height: 1.5;
   white-space: pre-wrap;
   color: var(--text-color);
   margin-bottom: 1.5vh;
+  word-break: break-word; /* 允许单词换行 */
 }
 
 .ai-actions {
@@ -726,7 +762,7 @@ const handleQuickActionClick = (route) => {
   justify-content: flex-end;
 }
 
-.ai-button {
+.action-btn {
   display: flex;
   align-items: center;
   background: rgba(33, 150, 243, 0.2);
@@ -739,7 +775,7 @@ const handleQuickActionClick = (route) => {
   transition: all 0.3s;
 }
 
-.ai-button:hover {
+.action-btn:hover {
   background: rgba(33, 150, 243, 0.3);
 }
 

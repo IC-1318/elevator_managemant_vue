@@ -16,60 +16,38 @@ const AuthService = {
    */
   async login(username, password) {
     try {
-      // 实际项目中应该调用后端API登录
-      // 目前使用模拟数据
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          // 模拟登录逻辑
-          // 管理员: admin/admin123
-          // 维修人员: repair/repair123
-          if (username === 'admin' && password === 'admin123') {
-            // 管理员登录成功
-            const token = 'admin-mock-jwt-token'; // 实际应该是从后端获取的JWT
-            const userData = {
-              userId: '001',
-              username: 'admin',
-              role: authConfig.ROLES.ADMIN,
-              token: token
-            };
-            resolve({
-              success: true,
-              data: userData
-            });
-          } else if (username === 'repair' && password === 'repair123') {
-            // 维修人员登录成功
-            const token = 'repair-mock-jwt-token'; // 实际应该是从后端获取的JWT
-            const userData = {
-              userId: '002',
-              username: 'repair',
-              role: authConfig.ROLES.MAINTENANCE,
-              token: token
-            };
-            resolve({
-              success: true,
-              data: userData
-            });
-          } else {
-            // 登录失败
-            resolve({
-              success: false,
-              message: '用户名或密码错误'
-            });
-          }
-        }, 1000);
+      // 实际项目中的API调用应该是这样:
+      const response = await axios.post(`/api/users/login`, {
+        userName: username,
+        password: password
       });
 
-      // 实际项目中的API调用应该是这样:
-      // const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-      //   username,
-      //   password
-      // });
-      // return response.data;
+      if (response.data && response.data.code === 200) {
+        // 登录成功
+        const resultData = response.data.data;
+        const userData = {
+          userId: null, // 后端目前没有返回userId，暂设为null
+          username: resultData.username,
+          role: resultData.role,
+          token: resultData.token
+        };
+        return {
+          success: true,
+          data: userData
+        };
+      } else {
+        // 登录失败
+        return {
+          success: false,
+          message: response.data.msg || '登录失败'
+        };
+      }
     } catch (error) {
       console.error('登录失败:', error);
+      const message = error.response?.data?.msg || '登录失败，请稍后再试';
       return {
         success: false,
-        message: '登录失败，请稍后再试'
+        message: message
       };
     }
   },

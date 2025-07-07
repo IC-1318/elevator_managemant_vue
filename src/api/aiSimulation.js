@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import api from './index';
 
 /**
  * AI模拟数据相关API
@@ -146,5 +147,13 @@ export default {
       console.error('调用DeepSeek AI失败:', error);
       throw new Error(`调用AI模拟数据失败: ${error.message}`);
     }
+  },
+
+  /**
+   * 获取AI寿命预测分析
+   * @returns {Promise<Object>}
+   */
+  getLifetimeAnalysis() {
+    return api.get('/data-etable/lifetime-analysis-full');
   }
 }; 

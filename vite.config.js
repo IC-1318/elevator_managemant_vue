@@ -9,5 +9,14 @@ export default defineConfig({
     alias: {
       'three/addons/': 'three/examples/jsm/'
     }
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
   }
 })
