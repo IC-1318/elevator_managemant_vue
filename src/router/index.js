@@ -8,6 +8,7 @@ import AbnormalData from '../views/AbnormalData.vue'
 import UserManagement from '../views/UserManagement.vue'
 import MaintenanceLog from '../views/MaintenanceLog.vue'
 import MaintenanceWorkerDashboard from '../views/MaintenanceWorkerDashboard.vue'
+import AuthService from '../services/authService';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -82,34 +83,29 @@ const router = createRouter({
 
 // 全局导航守卫
 router.beforeEach((to, from, next) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  const userRole = localStorage.getItem('userRole');
+  const isAuthenticated = AuthService.isAuthenticated();
+  const userRole = AuthService.getUserRole();
+  
+  if (to.name === 'admin-login' && isAuthenticated) {
+    next({ name: 'dashboard' });
+    return;
+  }
   
   // 如果需要认证但没有登录，重定向到登录页面
-  if (to.meta.requiresAuth && !isLoggedIn) {
+  if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'admin-login' });
     return;
   }
   
   // 如果页面有角色限制，检查用户角色是否匹配
-  if (to.meta.roles && to.meta.roles.length > 0) {
-    if (!userRole || !to.meta.roles.includes(userRole)) {
-      // 如果用户是维修人员，重定向到维修仪表盘
-      if (userRole === 'maintenance') {
-        next({ name: 'maintenance-dashboard' });
-        return;
-      }
-      // 如果用户是管理员，重定向到管理员首页
-      else if (userRole === 'admin') {
-        next({ name: 'dashboard' });
-        return;
-      }
-      // 其他情况，重定向到登录页
-      else {
-        next({ name: 'admin-login' });
-        return;
-      }
+  if (to.meta.roles && !to.meta.roles.includes(userRole)) {
+    // 如果角色不匹配，重定向到他们有权访问的页面或登录页
+    if (isAuthenticated) {
+      next({ name: 'dashboard' }); // admin用户默认页
+    } else {
+      next({ name: 'admin-login' });
     }
+    return;
   }
   
   // 其他情况，正常导航

@@ -1,8 +1,12 @@
-import axios from 'axios';
-import config from '../api/config';
-import authConfig from '../config/auth.config';
+// import axios from 'axios';
+// import config from '../api/config';
+// import authConfig from '../config/auth.config';
 
-const API_BASE_URL = config.API_BASE_URL;
+// const API_BASE_URL = config.API_BASE_URL;
+
+// 从sessionStorage初始化状态，这样刷新页面后状态不会丢失
+let isAuthenticated = sessionStorage.getItem('isAuthenticated') === 'true';
+let userRole = sessionStorage.getItem('userRole');
 
 /**
  * 认证相关的服务
@@ -15,76 +19,49 @@ const AuthService = {
    * @returns {Promise<Object>} 登录结果
    */
   async login(username, password) {
-    try {
-      // 实际项目中的API调用应该是这样:
-      const response = await axios.post(`/api/users/login`, {
-        userName: username,
-        password: password
-      });
-
-      if (response.data && response.data.code === 200) {
-        // 登录成功
-        const resultData = response.data.data;
-        const userData = {
-          userId: null, // 后端目前没有返回userId，暂设为null
-          username: resultData.username,
-          role: resultData.role,
-          token: resultData.token
-        };
-        return {
-          success: true,
-          data: userData
-        };
-      } else {
-        // 登录失败
-        return {
-          success: false,
-          message: response.data.msg || '登录失败'
-        };
-      }
-    } catch (error) {
-      console.error('登录失败:', error);
-      const message = error.response?.data?.msg || '登录失败，请稍后再试';
-      return {
-        success: false,
-        message: message
-      };
-    }
-  },
-
-  /**
-   * 保存用户信息到本地存储
-   * @param {Object} userData - 用户数据
-   */
-  saveUserData(userData) {
-    localStorage.setItem(authConfig.STORAGE_KEYS.USER_INFO, JSON.stringify(userData));
-    localStorage.setItem(authConfig.STORAGE_KEYS.IS_LOGGED_IN, 'true');
-    localStorage.setItem(authConfig.STORAGE_KEYS.USER_ROLE, userData.role);
-    localStorage.setItem(authConfig.STORAGE_KEYS.TOKEN, userData.token);
-
-    // 设置axios的默认Authorization头
-    axios.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+    // 模拟异步操作
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (username === 'admin' && password === 'admin123') {
+          isAuthenticated = true;
+          userRole = 'admin';
+          // 将登录状态保存到sessionStorage
+          sessionStorage.setItem('isAuthenticated', 'true');
+          sessionStorage.setItem('userRole', 'admin');
+          resolve({
+            success: true,
+            data: {
+              username: 'admin',
+              role: 'admin',
+            },
+          });
+        } else {
+          resolve({
+            success: false,
+            message: '用户名或密码错误',
+          });
+        }
+      }, 500); // 模拟网络延迟
+    });
   },
 
   /**
    * 注销方法
    */
   logout() {
-    localStorage.removeItem(authConfig.STORAGE_KEYS.USER_INFO);
-    localStorage.removeItem(authConfig.STORAGE_KEYS.IS_LOGGED_IN);
-    localStorage.removeItem(authConfig.STORAGE_KEYS.USER_ROLE);
-    localStorage.removeItem(authConfig.STORAGE_KEYS.TOKEN);
-    
-    // 清除axios的默认Authorization头
-    delete axios.defaults.headers.common['Authorization'];
+    isAuthenticated = false;
+    userRole = null;
+    // 从sessionStorage中移除登录状态
+    sessionStorage.removeItem('isAuthenticated');
+    sessionStorage.removeItem('userRole');
   },
 
   /**
-   * 检查用户是否已登录
-   * @returns {boolean} 是否已登录
+   * 检查用户是否已认证
+   * @returns {boolean} 是否已认证
    */
-  isLoggedIn() {
-    return localStorage.getItem(authConfig.STORAGE_KEYS.IS_LOGGED_IN) === 'true';
+  isAuthenticated() {
+    return isAuthenticated;
   },
 
   /**
@@ -92,15 +69,7 @@ const AuthService = {
    * @returns {string|null} 用户角色
    */
   getUserRole() {
-    return localStorage.getItem(authConfig.STORAGE_KEYS.USER_ROLE);
-  },
-
-  /**
-   * 获取JWT令牌
-   * @returns {string|null} JWT令牌
-   */
-  getToken() {
-    return localStorage.getItem(authConfig.STORAGE_KEYS.TOKEN);
+    return userRole;
   },
 
   /**
@@ -108,42 +77,13 @@ const AuthService = {
    * @returns {string} 重定向路由
    */
   getRedirectRoute() {
-    const role = this.getUserRole();
-    return authConfig.DEFAULT_ROUTES[role] || '/login';
+    if (this.isAuthenticated()) {
+      const role = this.getUserRole();
+      // 登录后默认都跳转到主仪表盘
+      return role === 'admin' ? '/' : '/';
+    }
+    return '/login';
   },
-
-  /**
-   * 设置axios请求拦截器，自动添加JWT令牌到请求头
-   */
-  setupAxiosInterceptors() {
-    axios.interceptors.request.use(
-      (config) => {
-        const token = this.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
-    // 响应拦截器，处理401未授权错误
-    axios.interceptors.response.use(
-      (response) => {
-        return response;
-      },
-      (error) => {
-        if (error.response && error.response.status === 401) {
-          // 如果收到401响应，清除用户信息并跳转到登录页
-          this.logout();
-          window.location = '/login';
-        }
-        return Promise.reject(error);
-      }
-    );
-  }
 };
 
 export default AuthService; 

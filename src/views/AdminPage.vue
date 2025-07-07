@@ -2,8 +2,10 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import TechGridBackground from '../components/TechGridBackground.vue';
+// import HeaderPanel from '../components/HeaderPanel.vue'; 
 import { useAIAnalysis } from '../composables/useAIAnalysis.js';
-import { getLifetimeAnalysis } from '../api/aiSimulation.js'; // 引入API
+import aiSimulationApi from '../api/aiSimulation.js'; // 引入API
+import AuthService from '../services/authService'; // 引入AuthService
 
 const router = useRouter();
 const isAIExpanded = ref(false);
@@ -14,61 +16,147 @@ const mainAnalysis = ref('点击获取分析'); // 用于存储main字段
 const fullMessage = ref(''); // 用于存储message字段
 let typingInterval = null; // 用于控制打字机效果的定时器
 
-// 切换AI分析展开状态
+// 修改AI分析展开状态和获取数据
 const toggleAIAnalysis = async () => {
-  isAIExpanded.value = !isAIExpanded.value;
-  if (isAIExpanded.value && !fullMessage.value) { // 仅在展开且没有数据时请求
-    isLoading.value = true;
-    try {
-      const response = await getLifetimeAnalysis();
-      if (response && response.data) {
-        mainAnalysis.value = response.data.main;
-        fullMessage.value = response.data.message;
+  // 如果已经展开，则只是折叠
+  if (isAIExpanded.value) {
+    isAIExpanded.value = false;
+    return;
+  }
+  
+  // 如果未展开，则展开并请求数据
+  isAIExpanded.value = true;
+  isLoading.value = true;
+  mainAnalysis.value = "正在分析中...";
+  
+  try {
+    const response = await aiSimulationApi.getLifetimeAnalysis();
+    console.log('AI寿命预测分析处理后数据:', response);
+    
+    if (response && response.data) {
+      // 确保数据即使是空字符串也能显示有意义的内容
+      if (response.data.main || response.data.main === '') {
+        mainAnalysis.value = response.data.main || "无主要分析结果";
       } else {
-        mainAnalysis.value = "获取分析失败";
+        mainAnalysis.value = "无法获取主要分析结果";
       }
-    } catch (error) {
-      console.error("获取AI寿命分析失败:", error);
-      mainAnalysis.value = "获取分析失败，请检查网络";
-    } finally {
-      isLoading.value = false;
+      
+      if (response.data.message || response.data.message === '') {
+        fullMessage.value = response.data.message || "无详细分析内容";
+      } else {
+        fullMessage.value = "无法获取详细分析内容";
+      }
+      
+      // 如果数据中没有有意义的内容，提供一个友好的提示
+      if (!response.data.main && !response.data.message) {
+        mainAnalysis.value = "API返回的数据格式不包含有效的分析结果";
+        fullMessage.value = "后端API未返回预期的分析内容，请检查API实现或联系管理员。";
+      }
+    } else {
+      console.error('API返回的数据格式不正确:', response);
+      mainAnalysis.value = "获取分析失败: 数据格式不正确";
+      fullMessage.value = response ? JSON.stringify(response, null, 2) : "未收到任何响应数据";
     }
+  } catch (error) {
+    console.error("获取AI寿命分析失败:", error);
+    mainAnalysis.value = "获取分析失败，请检查网络";
+    fullMessage.value = error.message || "未知错误";
+  } finally {
+    isLoading.value = false;
   }
 };
 
 // 请求详细AI分析
-const requestDetailedAnalysis = () => {
+const requestDetailedAnalysis = (event) => {
+  // 防止事件冒泡，避免触发父元素的点击事件
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  
+  // 设置面板打开状态
   isDetailedAnalysisOpen.value = true;
   detailedAnalysis.value = ''; // 清空上一次的内容
   
   // 停止上一次可能还在进行的打字机效果
   if (typingInterval) {
     clearInterval(typingInterval);
+    typingInterval = null;
   }
 
-  let index = 0;
-  const messageToType = fullMessage.value;
-
-  if (!messageToType) {
-    detailedAnalysis.value = "无详细分析内容。";
-    return;
-  }
-
-  // 使用定时器创建“假流式”打字机效果
-  typingInterval = setInterval(() => {
-    if (index < messageToType.length) {
-      detailedAnalysis.value += messageToType.charAt(index);
-      index++;
-    } else {
-      clearInterval(typingInterval);
-      typingInterval = null;
+  // 确保面板已经打开并稳定显示
+  setTimeout(() => {
+    const messageToType = fullMessage.value;
+    
+    // 处理无内容的情况
+    if (!messageToType || messageToType.trim() === '') {
+      detailedAnalysis.value = "没有详细分析内容可显示。";
+      return;
     }
-  }, 50); // 每个字出现的间隔时间
+    
+    // 检查是否需要直接显示而不使用打字机效果的情况
+    
+    // 1. 如果是JSON字符串，格式化显示
+    if (messageToType.trim().startsWith('{') && messageToType.trim().endsWith('}')) {
+      try {
+        const jsonObj = JSON.parse(messageToType);
+        detailedAnalysis.value = JSON.stringify(jsonObj, null, 2);
+        return; // 如果是JSON，直接显示格式化后的内容，不使用打字机效果
+      } catch (e) {
+        console.log('不是有效JSON，继续使用打字机效果');
+      }
+    }
+    
+    // 2. 如果内容过长(超过1000个字符)，直接显示
+    if (messageToType.length > 1000) {
+      console.log('内容过长，不使用打字机效果');
+      detailedAnalysis.value = messageToType;
+      return;
+    }
+
+    // 使用变量跟踪面板打开状态，确保面板关闭后不再继续打字效果
+    let isPanelOpen = true;
+    
+    // 使用定时器创建"假流式"打字机效果
+    let index = 0;
+    typingInterval = setInterval(() => {
+      // 再次检查面板是否已关闭，确保不在已关闭的面板上继续添加内容
+      if (!isDetailedAnalysisOpen.value) {
+        isPanelOpen = false;
+        clearInterval(typingInterval);
+        typingInterval = null;
+        return;
+      }
+      
+      if (index < messageToType.length && isPanelOpen) {
+        detailedAnalysis.value += messageToType.charAt(index);
+        index++;
+        
+        // 自动滚动到底部以显示最新内容
+        const analysisPanel = document.querySelector('.detailed-content');
+        if (analysisPanel) {
+          analysisPanel.scrollTop = analysisPanel.scrollHeight;
+        }
+      } else {
+        clearInterval(typingInterval);
+        typingInterval = null;
+      }
+    }, 20); // 快速的间隔时间，使打字效果流畅
+  }, 400); // 增加延迟确保面板已经完成打开动画和DOM渲染
 };
 
 // 关闭详细分析面板
-const closeDetailedAnalysis = () => {
+const closeDetailedAnalysis = (event) => {
+  // 防止事件冒泡
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  
+  console.log('关闭详细分析面板');
+  // 使用定时器确保动画完成后才重置其他状态
   isDetailedAnalysisOpen.value = false;
+  
   // 关闭面板时也停止打字效果
   if (typingInterval) {
     clearInterval(typingInterval);
@@ -124,10 +212,7 @@ const systemHealth = computed(() => {
 
 // 退出登录
 const handleLogout = () => {
-  localStorage.removeItem('isLoggedIn');
-  localStorage.removeItem('username');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('token');
+  AuthService.logout();
   router.push('/login');
 };
 
@@ -279,29 +364,25 @@ const handleQuickActionClick = (route) => {
               </div>
             </div>
             
-            <!-- AI分析部分 -->
-            <div class="admin-ai-panel panel" :class="{ 'expanded': isAIExpanded }">
-              <div class="panel-header" @click="toggleAIAnalysis">
+            <!-- 修改的 AI 分析部分 -->
+            <div class="ai-analysis-section" :class="{ 'expanded': isAIExpanded }">
+              <div class="ai-header">
                 <div class="ai-icon-wrapper">
                   <span class="ai-icon">🤖</span>
                 </div>
-                <h3 class="panel-title tech-text">
-                  <span class="ai-label">电梯寿命预测分析</span>
-                </h3>
-                <div class="tech-decoration"></div>
-                <button class="expand-button">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
+                <h3 class="ai-title tech-text">电梯寿命预测分析</h3>
+                <button class="ai-predict-button" @click="toggleAIAnalysis">
+                  {{ isAIExpanded ? '收起' : '获取AI预测' }}
                 </button>
               </div>
-              <div class="ai-content">
+              
+              <div class="ai-content" v-if="isAIExpanded">
                 <div class="ai-summary">
                   <p v-if="isLoading">正在分析中...</p>
                   <p v-else>{{ mainAnalysis }}</p>
                 </div>
                 <div class="ai-actions">
-                  <button class="action-btn detail-btn" @click="requestDetailedAnalysis">
+                  <button class="action-btn detail-btn" @click="(e) => requestDetailedAnalysis(e)">
                     详细分析 ►
                   </button>
                 </div>
@@ -313,10 +394,10 @@ const handleQuickActionClick = (route) => {
     </div>
 
     <!-- 详细分析滑出面板 -->
-    <div class="detailed-analysis-panel" :class="{ 'panel-open': isDetailedAnalysisOpen }">
+    <div class="detailed-analysis-panel" :class="{ 'panel-open': isDetailedAnalysisOpen }" @click.stop>
       <div class="panel-header">
         <h3 class="panel-title tech-text">AI 深度分析报告</h3>
-        <button class="close-button" @click="closeDetailedAnalysis">✕</button>
+        <button class="close-button" @click="(e) => { e.stopPropagation(); closeDetailedAnalysis(e); }">✕</button>
       </div>
       
       <div class="panel-content">
@@ -666,33 +747,30 @@ const handleQuickActionClick = (route) => {
   color: #ff9800;
 }
 
-/* AI分析部分样式 */
-.admin-ai-panel {
+/* 修改 AI 分析部分的样式 */
+.ai-analysis-section {
   margin-top: 2vh;
   border-top: 1px solid rgba(33, 150, 243, 0.3);
   padding-top: 2vh;
   transition: all 0.3s ease-in-out;
 }
 
-.admin-ai-panel.expanded {
-  height: auto; /* 展开时高度自适应 */
-  min-height: 100%; /* 确保展开时高度至少为面板高度 */
-  padding-bottom: 2vh; /* 展开时底部有更多空间 */
+.ai-analysis-section.expanded {
+  height: auto;
+  padding-bottom: 2vh;
 }
 
-.panel-header {
+.ai-header {
   display: flex;
   align-items: center;
   background: rgba(33, 150, 243, 0.05);
-  padding: 1vh 1.5vw;
+  padding: 1.5vh 1.5vw;
   border-radius: 8px;
-  cursor: pointer;
   transition: all 0.3s;
   border: 1px solid rgba(33, 150, 243, 0.3);
-  width: 100%; /* 增加宽度到100%，使框更长 */
 }
 
-.panel-header:hover {
+.ai-header:hover {
   background: rgba(33, 150, 243, 0.1);
 }
 
@@ -713,28 +791,34 @@ const handleQuickActionClick = (route) => {
   font-size: 1.8rem;
 }
 
-.ai-label {
+.ai-title {
   flex: 1;
   font-weight: 500;
   color: #4dabf5;
   font-size: 1rem;
+  margin: 0;
 }
 
-.expand-button {
-  background: none;
-  border: none;
+.ai-predict-button {
+  background: rgba(33, 150, 243, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  border-radius: 4px;
   color: #4dabf5;
-  font-size: 1.2rem;
+  padding: 0.7vh 1.2vw;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: transform 0.3s;
-  padding: 5px;
+  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 500;
+  box-shadow: 0 0 5px rgba(33, 150, 243, 0.2);
 }
 
-.expand-button:hover {
-  transform: rotate(180deg);
+.ai-predict-button:hover {
+  background: rgba(33, 150, 243, 0.3);
+  box-shadow: 0 0 8px rgba(33, 150, 243, 0.3);
+  transform: translateY(-2px);
 }
 
 .ai-content {
@@ -745,7 +829,12 @@ const handleQuickActionClick = (route) => {
   border: 1px solid rgba(33, 150, 243, 0.2);
   max-height: 50vh;
   overflow-y: auto;
-  width: 100%; /* 确保内容区域也是100%宽度 */
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .ai-summary {
@@ -822,53 +911,81 @@ const handleQuickActionClick = (route) => {
   border-left: 1px solid rgba(33, 150, 243, 0.6);
   box-shadow: -5px 0 25px rgba(0, 0, 0, 0.5);
   z-index: 1000;
-  transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: right 0.4s cubic-bezier(0.19, 1, 0.22, 1); /* 使用更平滑的缓动函数 */
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(10px);
+  overflow: hidden; /* 防止内容溢出 */
+  will-change: right; /* 提示浏览器进行优化 */
 }
 
 .detailed-analysis-panel.panel-open {
   right: 0;
+  pointer-events: auto; /* 确保面板打开时可以接收交互事件 */
 }
 
-.panel-header {
-  padding: 20px;
+  .panel-header {
+  padding: 25px;
   border-bottom: 1px solid rgba(33, 150, 243, 0.3);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.detailed-analysis-panel .panel-title {
+  font-size: 1.8rem; /* 增大标题字体 */
+  margin: 0;
+  color: #4dabf5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(77, 171, 245, 0.5);
+}
+
 .close-button {
   background: none;
   border: none;
   color: #4dabf5;
-  font-size: 1.5rem;
+  font-size: 2rem; /* 增大关闭按钮 */
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s, transform 0.2s;
+  padding: 10px;
+  margin: -10px;
 }
 
 .close-button:hover {
   color: #ffffff;
+  transform: scale(1.1); /* 悬停时轻微放大 */
 }
 
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 25px; /* 增大内边距 */
+  background-color: rgba(13, 31, 61, 0.3); /* 轻微背景色 */
 }
 
 .detailed-content {
   color: var(--text-color);
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px 5px;
+  font-size: 1.2rem; /* 匹配分析文本的大小 */
 }
 
 .analysis-text {
   white-space: pre-wrap;
-  font-family: inherit;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: var(--text-color);
+  font-family: 'Courier New', monospace;
+  font-size: 1.2rem; /* 增大字体大小 */
+  line-height: 1.8; /* 适当增加行高 */
+  color: #e0e0ff;
+  padding: 15px; /* 增大内边距 */
+  background-color: rgba(13, 31, 61, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(77, 171, 245, 0.3);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  margin-top: 10px; /* 增加与面板顶部的距离 */
 }
 
 /* 响应式调整 */

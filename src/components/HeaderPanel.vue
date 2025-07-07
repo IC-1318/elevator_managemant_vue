@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
+import AuthService from '../services/authService';
 
 const router = useRouter();
 const showAdminProfile = ref(false);
@@ -82,13 +83,13 @@ const toggleAdminProfile = () => {
 };
 
 const handleLogout = () => {
-  localStorage.removeItem('isLoggedIn');
-  localStorage.removeItem('username');
+  AuthService.logout();
   router.push('/login');
 };
 
 // 跳转到管理员页面
 const goToAdminPage = () => {
+  console.log('跳转到管理员页面');
   router.push('/admin');
 };
 </script>
@@ -287,19 +288,20 @@ const goToAdminPage = () => {
       </svg>
     </div>
     
-    <div class="logout-icon" @click="handleLogout">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
-    </div>
-    
-    <div class="admin-icon" @click="goToAdminPage">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-      </svg>
+    <div class="user-controls">
+      <div class="control-button left-button" @click="handleLogout" title="退出登录">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      </div>
+      <div class="control-button right-button" @click="goToAdminPage" title="管理员页面">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <path d="M12 11.1v-3.6" />
+        </svg>
+      </div>
     </div>
   </div>
 </template>
@@ -560,5 +562,52 @@ const goToAdminPage = () => {
 
 .tech-text {
   font-family: 'Consolas', monospace;
+}
+
+.user-controls {
+  position: fixed;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 1000;
+  top: 10px;
+}
+
+.left-button {
+  position: absolute;
+  left: 20px;
+}
+
+.right-button {
+  position: absolute;
+  right: 20px;
+}
+
+.control-button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(33, 150, 243, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  color: #4dabf5;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
+  z-index: 1000;
+}
+
+.control-button:hover {
+  background: rgba(33, 150, 243, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+}
+
+.control-button svg {
+  width: 20px;
+  height: 20px;
 }
 </style>

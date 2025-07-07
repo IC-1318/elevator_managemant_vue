@@ -22,11 +22,12 @@ const handleLogin = async () => {
     const result = await AuthService.login(username.value, password.value);
     
     if (result.success) {
-      AuthService.saveUserData(result.data);
+      // 登录成功后不再需要保存用户数据
+      // AuthService.saveUserData(result.data);
       
-      if (rememberMe.value) {
-        localStorage.setItem('rememberedUsername', username.value);
-      }
+      // if (rememberMe.value) {
+      //   localStorage.setItem('rememberedUsername', username.value);
+      // }
       
       // 使用重定向方法获取路由
       router.push(AuthService.getRedirectRoute());
@@ -41,11 +42,11 @@ const handleLogin = async () => {
   }
 };
 
-// 如果有记住的用户名，自动填充
-if (localStorage.getItem('rememberedUsername')) {
-  username.value = localStorage.getItem('rememberedUsername');
-  rememberMe.value = true;
-}
+// 不再需要自动填充用户名
+// if (localStorage.getItem('rememberedUsername')) {
+//   username.value = localStorage.getItem('rememberedUsername');
+//   rememberMe.value = true;
+// }
 </script>
 
 <template>
@@ -100,7 +101,7 @@ if (localStorage.getItem('rememberedUsername')) {
             <input type="checkbox" v-model="rememberMe" />
             <span>记住我</span>
           </label>
-          <a href="#" class="forgot-password">忘记密码?</a>
+          <!-- <a href="#" class="forgot-password">忘记密码?</a> -->
         </div>
         
         <div v-if="errorMessage" class="error-message">
