@@ -46,6 +46,21 @@ const submitAddUser = async () => {
   }
 };
 
+const handleEdit = async (user) => {
+  try {
+    showAddDialog.value = true;
+    newUser.value = {
+      userName: user.userName,
+      userPhone: user.userPhone,
+      position: user.position,
+      id: user.id
+    };
+  } catch (error) {
+    console.error('编辑人员失败:', error);
+    ElMessage.error('编辑人员失败');
+  }
+};
+
 const handleDelete = async (user) => {
   try {
     const confirmed = confirm(`确认要删除人员 ${user.userName} 吗？`);
@@ -109,6 +124,7 @@ onMounted(() => {
         <el-table-column prop="position" label="岗位" />
         <el-table-column label="操作" width="180">
           <template #default="scope">
+            <el-button size="small" type="primary" @click="handleEdit(scope.row)">修改</el-button>
             <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
@@ -156,10 +172,38 @@ onMounted(() => {
 }
 
 .user-table {
-  background: #fff;
+  background: transparent;
   padding: 20px;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.user-table::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(25, 118, 210, 0.3), rgba(41, 182, 246, 0.3)) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  animation: borderFlow 3s linear infinite;
+}
+
+@keyframes borderFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .dialog-footer {
