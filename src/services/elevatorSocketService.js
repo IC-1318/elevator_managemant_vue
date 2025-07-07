@@ -1,4 +1,4 @@
-const WEBSOCKET_URL = 'ws://10.181.198.148:8080/ws/elevator'; // 后端WebSocket服务器地址
+const WEBSOCKET_URL = 'ws://localhost:8080/ws/elevator'; // 后端WebSocket服务器地址
 
 class ElevatorSocketService {
   constructor() {
@@ -129,4 +129,4 @@ class ElevatorSocketService {
 }
 
 // 导出一个单例，确保整个应用只有一个WebSocket服务实例
-export default new ElevatorSocketService(); 
+export default new ElevatorSocketService();
