@@ -1,13 +1,22 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import AuthService from '../services/authService';
 
 const router = useRouter();
 const showAdminProfile = ref(false);
+const userInfo = ref({});
+const userRole = ref('');
+
+onMounted(() => {
+  // 获取用户信息
+  const storedUserInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+  userInfo.value = storedUserInfo;
+  userRole.value = AuthService.getUserRole();
+});
 
 const handleLogout = () => {
-  localStorage.removeItem('isLoggedIn');
-  localStorage.removeItem('username');
+  AuthService.logout();
   router.push('/login');
 };
 
@@ -15,15 +24,10 @@ const toggleAdminProfile = () => {
   showAdminProfile.value = !showAdminProfile.value;
 };
 
-// 模拟管理员信息
-const adminInfo = {
-  name: '系统管理员',
-  role: '超级管理员',
-  department: '电梯维护部',
-  phone: '138****8888',
-  email: 'admin@elevator.com',
-  lastLogin: '2023-12-20 10:30:45',
-  permissions: ['系统配置', '用户管理', '电梯监控', '维护记录', '报警处理']
+// 模拟管理员权限
+const adminPermissions = {
+  admin: ['系统配置', '用户管理', '电梯监控', '维护记录', '报警处理'],
+  maintenance: ['维修任务', '任务提交', '系统检查']
 };
 </script>
 
@@ -42,10 +46,10 @@ const adminInfo = {
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
         </span>
-        <span class="admin-name">管理员</span>
+        <span class="admin-name">{{ userInfo.username || '用户' }}</span>
       </div>
       
-      <!-- 管理员详细信息弹出层 -->
+      <!-- 用户详细信息弹出层 -->
       <div v-if="showAdminProfile" class="admin-profile-popup">
         <div class="profile-header">
           <div class="profile-avatar">
@@ -55,8 +59,8 @@ const adminInfo = {
             </svg>
           </div>
           <div class="profile-basic-info">
-            <h3>{{ adminInfo.name }}</h3>
-            <span class="profile-role">{{ adminInfo.role }}</span>
+            <h3>{{ userInfo.username || '用户' }}</h3>
+            <span class="profile-role">{{ userRole === 'admin' ? '管理员' : '维修人员' }}</span>
           </div>
         </div>
         
@@ -64,27 +68,23 @@ const adminInfo = {
           <div class="profile-section">
             <h4>个人信息</h4>
             <div class="profile-item">
-              <span class="item-label">部门:</span>
-              <span class="item-value">{{ adminInfo.department }}</span>
+              <span class="item-label">用户ID:</span>
+              <span class="item-value">{{ userInfo.userId }}</span>
             </div>
             <div class="profile-item">
-              <span class="item-label">电话:</span>
-              <span class="item-value">{{ adminInfo.phone }}</span>
-            </div>
-            <div class="profile-item">
-              <span class="item-label">邮箱:</span>
-              <span class="item-value">{{ adminInfo.email }}</span>
-            </div>
-            <div class="profile-item">
-              <span class="item-label">上次登录:</span>
-              <span class="item-value">{{ adminInfo.lastLogin }}</span>
+              <span class="item-label">角色:</span>
+              <span class="item-value">{{ userRole === 'admin' ? '管理员' : '维修人员' }}</span>
             </div>
           </div>
           
           <div class="profile-section">
             <h4>权限信息</h4>
             <div class="permissions-list">
-              <span v-for="(permission, index) in adminInfo.permissions" :key="index" class="permission-tag">
+              <span 
+                v-for="(permission, index) in (userRole === 'admin' ? adminPermissions.admin : adminPermissions.maintenance)" 
+                :key="index" 
+                class="permission-tag"
+              >
                 {{ permission }}
               </span>
             </div>

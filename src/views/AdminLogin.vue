@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AuthService from '../services/authService';
 
 const router = useRouter();
 const username = ref('');
@@ -9,7 +10,7 @@ const rememberMe = ref(false);
 const errorMessage = ref('');
 const isLoading = ref(false);
 
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!username.value || !password.value) {
     errorMessage.value = '请输入用户名和密码';
     return;
@@ -17,22 +18,34 @@ const handleLogin = () => {
   
   isLoading.value = true;
   
-  // 这里模拟登录请求
-  setTimeout(() => {
-    isLoading.value = false;
-    // 临时示例：用户名admin和密码admin123可以登录
-    if (username.value === 'admin' && password.value === 'admin123') {
-      // 登录成功
-      localStorage.setItem('isLoggedIn', 'true');
+  try {
+    const result = await AuthService.login(username.value, password.value);
+    
+    if (result.success) {
+      AuthService.saveUserData(result.data);
+      
       if (rememberMe.value) {
-        localStorage.setItem('username', username.value);
+        localStorage.setItem('rememberedUsername', username.value);
       }
-      router.push('/');
+      
+      // 使用重定向方法获取路由
+      router.push(AuthService.getRedirectRoute());
     } else {
-      errorMessage.value = '用户名或密码错误';
+      errorMessage.value = result.message || '用户名或密码错误';
     }
-  }, 1000);
+  } catch (error) {
+    console.error('登录失败:', error);
+    errorMessage.value = '登录失败，请稍后再试';
+  } finally {
+    isLoading.value = false;
+  }
 };
+
+// 如果有记住的用户名，自动填充
+if (localStorage.getItem('rememberedUsername')) {
+  username.value = localStorage.getItem('rememberedUsername');
+  rememberMe.value = true;
+}
 </script>
 
 <template>
@@ -40,7 +53,7 @@ const handleLogin = () => {
     <div class="login-panel panel">
       <div class="login-header">
         <h1 class="login-title">电梯系统管理平台</h1>
-        <p class="login-subtitle">管理员登录</p>
+        <p class="login-subtitle">用户登录</p>
       </div>
       
       <form @submit.prevent="handleLogin" class="login-form">
@@ -57,7 +70,7 @@ const handleLogin = () => {
               type="text" 
               id="username" 
               v-model="username" 
-              placeholder="请输入管理员用户名"
+              placeholder="请输入用户名"
               autocomplete="username"
             />
           </div>
@@ -249,20 +262,20 @@ const handleLogin = () => {
   border: none;
   border-radius: 6px;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background-color 0.2s;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .login-button:hover {
-  background: #43a047;
+  background-color: #43a047;
 }
 
 .login-button:disabled {
-  background: #2c662f;
+  background-color: #808080;
   cursor: not-allowed;
 }
 
@@ -271,8 +284,9 @@ const handleLogin = () => {
   height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  border-top-color: white;
-  animation: spin 0.8s linear infinite;
+  border-top-color: #fff;
+  animation: spin 1s ease infinite;
+  display: inline-block;
 }
 
 @keyframes spin {
@@ -280,20 +294,26 @@ const handleLogin = () => {
 }
 
 .login-footer {
-  text-align: center;
   padding: 20px;
+  text-align: center;
   border-top: 1px solid var(--border-color);
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .system-version {
-  margin: 0 0 5px;
+  margin: 0;
   font-size: 0.9rem;
   color: var(--text-secondary);
 }
 
 .system-info {
-  margin: 0;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.tech-text {
+  opacity: 0.6;
+  font-family: monospace;
 }
 </style> 

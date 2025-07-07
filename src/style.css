@@ -30,7 +30,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: transparent;
-  overflow: hidden;
+  overflow-x: hidden; /* 防止水平滚动 */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
@@ -327,11 +327,10 @@ button:focus-visible {
 
 #app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 @media (prefers-color-scheme: light) {

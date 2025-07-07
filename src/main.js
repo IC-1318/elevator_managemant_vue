@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import AuthService from './services/authService'
+import axios from 'axios'
 
 // 引入Element Plus
 import ElementPlus from 'element-plus'
@@ -56,6 +58,15 @@ echarts.use([
   GraphicComponent,
   CanvasRenderer
 ])
+
+// 设置全局请求拦截器，添加JWT到所有请求
+AuthService.setupAxiosInterceptors();
+
+// 如果本地存储中有token，设置请求头
+const token = AuthService.getToken();
+if (token) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
 
 const app = createApp(App)
 app.use(router)
