@@ -1,9 +1,16 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ParameterChart from '../components/ParameterChart.vue';
-import MaintenanceChart from '../components/MaintenanceChart.vue';
 import SystemDashboard from '../components/SystemDashboard.vue';
 import * as echarts from 'echarts/core';
+import { use } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
+import { GaugeChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, TitleComponent } from 'echarts/components';
+import TractionModelViewer from '../components/TractionModelViewer.vue';
+
+// 注册必需的组件
+use([CanvasRenderer, GaugeChart, GridComponent, TooltipComponent, TitleComponent]);
 
 const systemId = 'sys-001';
 
@@ -11,6 +18,8 @@ const systemId = 'sys-001';
 const systemData = ref(null);
 // 定时器引用
 let dataUpdateInterval = null;
+// 存储所有仪表盘图表实例
+const gaugeCharts = ref([]);
 
 // 为不同的参数组分配不同的图表类型
 const getChartTypeForGroup = (group) => {
@@ -68,6 +77,194 @@ const fetchSystemData = () => {
   };
 };
 
+// 创建仪表盘图表
+const createGaugeCharts = () => {
+  if (!systemData.value) return;
+  
+  // 清除之前的图表实例
+  gaugeCharts.value.forEach(chart => {
+    chart.dispose();
+  });
+  gaugeCharts.value = [];
+  
+  // 获取曳引机参数
+  const tractionParams = systemData.value.parameters.filter(p => p.group === '曳引机');
+  
+  // 获取所有仪表盘DOM元素
+  const gaugeEls = document.querySelectorAll('.param-gauge');
+  if (!gaugeEls || gaugeEls.length === 0) return;
+  
+  // 为每个参数创建仪表盘
+  tractionParams.forEach((param, index) => {
+    // 获取DOM元素
+    const el = gaugeEls[index];
+    if (!el) return;
+    
+    // 获取参数范围值
+    let min = 0;
+    let max = 100;
+    let warning = 75;
+    let danger = 90;
+    
+    if (param.name === '电机温度') {
+      min = 0; 
+      max = 120;
+      warning = 75;
+      danger = 95;
+    } else if (param.name === '轴承温度') {
+      min = 0;
+      max = 120;
+      warning = 85;
+      danger = 95;
+    } else if (param.name === '振动速度') {
+      min = 0;
+      max = 6;
+      warning = 2.8;
+      danger = 4.5;
+    } else if (param.name === '电流') {
+      min = 10;
+      max = 25;
+      warning = 19;
+      danger = 21;
+    }
+    
+    // 创建图表实例
+    const chart = echarts.init(el);
+    
+    // 仪表盘配置
+    const option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        formatter: `{b}: {c}${param.unit}`,
+        backgroundColor: 'rgba(40, 40, 40, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        textStyle: {
+          color: '#fff'
+        }
+      },
+      series: [
+        {
+          name: param.name,
+          type: 'gauge',
+          center: ['50%', '55%'],
+          radius: '75%', // 从80%继续减少到75%
+          min,
+          max,
+          startAngle: 205,
+          endAngle: -25,
+          splitNumber: 5, // 从6减小到5，减少分段数
+          itemStyle: {
+            color: '#58D9F9'
+          },
+          progress: {
+            show: true,
+            width: 10, // 从12减小到10
+            itemStyle: {
+              shadowBlur: 0
+            }
+          },
+          pointer: {
+            show: true,
+            width: 3, // 从4减小到3
+            length: '60%', // 从65%减小到60%
+            itemStyle: {
+              color: '#58D9F9'
+            }
+          },
+          axisLine: {
+            lineStyle: {
+              width: 12, // 从14减小到12，使轴线更细
+              color: [
+                [warning / max, '#5CCEA8'],
+                [danger / max, '#E2A037'],
+                [1, '#E25837']
+              ],
+              shadowBlur: 0
+            }
+          },
+          axisTick: {
+            distance: -24,
+            length: 3, // 从4减小到3
+            lineStyle: {
+              color: '#fff',
+              width: 1
+            }
+          },
+          splitLine: {
+            distance: -26,
+            length: 6, // 从8减小到6
+            lineStyle: {
+              color: '#fff',
+              width: 1.5 // 从2减小到1.5
+            }
+          },
+          axisLabel: {
+            distance: -14,
+            color: '#fff',
+            fontSize: 10 // 从12减小到10
+          },
+          title: {
+            show: true,
+            offsetCenter: [0, '65%'], // 从75%调整到65%，向上移动标题
+            fontSize: 10, // 从12减小到10
+            color: '#58D9F9',
+            fontWeight: 'bold',
+            formatter: param.name
+          },
+          detail: {
+            valueAnimation: true,
+            fontSize: 16, // 从18减小到16
+            fontWeight: 'bolder',
+            offsetCenter: [0, '25%'], // 从30%调整到25%，向上移动数值
+            formatter: `{value}${param.unit}`,
+            color: '#58D9F9',
+            backgroundColor: 'transparent'
+          },
+          data: [
+            {
+              value: param.value,
+              name: param.name
+            }
+          ]
+        }
+      ]
+    };
+    
+    // 设置图表选项
+    chart.setOption(option);
+    
+    // 保存图表实例
+    gaugeCharts.value.push(chart);
+  });
+};
+
+// 更新仪表盘数据
+const updateGaugeCharts = () => {
+  if (gaugeCharts.value.length === 0) return;
+  
+  // 获取曳引机参数
+  const tractionParams = systemData.value.parameters.filter(p => p.group === '曳引机');
+  
+  // 更新每个仪表盘的数据
+  tractionParams.forEach((param, index) => {
+    if (index < gaugeCharts.value.length) {
+      const chart = gaugeCharts.value[index];
+      chart.setOption({
+        series: [
+          {
+            data: [
+              {
+                value: param.value,
+                name: param.name
+              }
+            ]
+          }
+        ]
+      });
+    }
+  });
+};
+
 // 更新系统数据
 const updateSystemData = () => {
   if (!systemData.value) return;
@@ -118,6 +315,9 @@ const updateSystemData = () => {
     ...systemData.value.timeLabels.slice(1, 6),
     '今日'
   ];
+  
+  // 更新仪表盘
+  updateGaugeCharts();
 };
 
 // 获取关键参数用于系统概览
@@ -208,9 +408,9 @@ const keyIndicatorsChartOption = computed(() => {
     // 使用自定义颜色函数
     const color = getParamColor(param.displayName);
     
-    // 增大环形图的间距，避免重叠
-    const radiusStart = 70 - index * 25;
-    const radiusEnd = 90 - index * 25;
+    // 调整环形图半径，以适应容器
+    const radiusStart = 50 - index * 16;
+    const radiusEnd = 65 - index * 16;
     
     return {
       name: param.displayName,
@@ -224,7 +424,7 @@ const keyIndicatorsChartOption = computed(() => {
       emphasis: {
         label: {
           show: true,
-          fontSize: 16,
+          fontSize: 14,
           fontWeight: 'bold',
           formatter: `{b}: {c} ${param.unit}`
         }
@@ -270,7 +470,6 @@ const keyIndicatorsChartOption = computed(() => {
         color: '#fff'
       }
     },
-    // 移除内置图例
     series: series
   };
 });
@@ -296,60 +495,101 @@ const getTrendData = () => {
 onMounted(() => {
   fetchSystemData();
   
+  // 创建仪表盘图表
+  setTimeout(() => {
+    createGaugeCharts();
+  }, 100);
+  
   // 设置定时更新数据，每3秒更新一次
   dataUpdateInterval = setInterval(() => {
     updateSystemData();
   }, 3000);
 });
 
-// 组件卸载前清除定时器
+// 窗口大小变化时重新调整图表
+window.addEventListener('resize', () => {
+  gaugeCharts.value.forEach(chart => {
+    chart.resize();
+  });
+});
+
+// 组件卸载前清除定时器和事件监听
 onBeforeUnmount(() => {
   if (dataUpdateInterval) {
     clearInterval(dataUpdateInterval);
     dataUpdateInterval = null;
   }
+  
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', () => {});
+  
+  // 销毁所有图表实例
+  gaugeCharts.value.forEach(chart => {
+    chart.dispose();
+  });
+  gaugeCharts.value = [];
 });
 </script>
 
 <template>
   <div class="system-view">
     <div v-if="systemData" class="system-content">
-      <header class="system-header panel">
-        <div class="system-info">
-          <div class="system-title-wrapper">
-            <h1 class="system-title">{{ systemData.name }}</h1>
-            <div class="system-icon">{{ systemData.icon }}</div>
+      <!-- 悬浮标题 -->
+      <div class="floating-header">
+        <h1 class="system-title">{{ systemData.name }}</h1>
+      </div>
+
+      <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
+      <div class="main-content">
+        <!-- 左侧参数列 -->
+        <div class="left-column">
+          <!-- 曳引机参数 -->
+          <div class="traction-parameters panel">
+            <div class="parameter-grid">
+              <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '曳引机')" 
+                   :key="index" 
+                   class="parameter-item">
+                <div class="param-gauge"></div>
+              </div>
+            </div>
           </div>
-          <p class="system-description">{{ systemData.description }}</p>
-          <div class="system-meta">
-            <div class="meta-item">{{ systemData.model }}</div>
-            <div class="meta-item">{{ systemData.manufacturer }}</div>
-            <div class="meta-item">{{ systemData.installDate }}</div>
+          
+          <!-- 钢丝绳参数模块 -->
+          <div class="panel parameter-module">
+            <div class="parameter-content">
+              <ParameterChart 
+                chartType="bar"
+                paramGroup="曳引钢丝绳" 
+                :parameters="systemData.parameters.filter(p => p.group === '曳引钢丝绳')" 
+              />
+            </div>
           </div>
         </div>
-      </header>
 
-      <!-- 关键指标和历史趋势结合面板 -->
-      <div class="indicators-trends-panel panel">
-        <div class="panel-columns">
+        <!-- 中间3D模型列 -->
+        <div class="center-column">
+          <div class="model-3d-container">
+            <TractionModelViewer />
+          </div>
+        </div>
+
+        <!-- 右侧图表列 -->
+        <div class="right-column">
           <!-- 关键指标部分 -->
-          <div class="left-panel">
-            <h2 class="section-title">关键指标</h2>
-            <!-- 自定义图例 -->
+          <div class="panel">
+            <div class="key-indicators-chart">
+              <v-chart class="chart" :option="keyIndicatorsChartOption" autoresize />
+            </div>
             <div class="indicators-legend">
               <div class="legend-item" v-for="(param, index) in getKeyParameters()" :key="index">
                 <span class="legend-color" :style="{backgroundColor: getParamColor(param.displayName)}"></span>
                 <span>{{ param.displayName }}: {{ param.value }}{{ param.unit }}</span>
               </div>
             </div>
-            <div class="key-indicators-chart">
-              <v-chart class="chart" :option="keyIndicatorsChartOption" autoresize />
-            </div>
           </div>
           
           <!-- 历史趋势部分 -->
-          <div class="right-panel">
-            <h2 class="section-title">历史趋势</h2>
+          <div class="panel">
             <div class="trend-chart-container">
               <ParameterChart 
                 v-if="getTrendData()"
@@ -359,68 +599,6 @@ onBeforeUnmount(() => {
               />
             </div>
           </div>
-        </div>
-      </div>
-      
-      <!-- 曳引机参数 - 在一个框内水平排列 -->
-      <div class="traction-parameters panel">
-        <h2 class="section-title">曳引机参数</h2>
-        <div class="parameter-row">
-          <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '曳引机')" 
-               :key="index" 
-               class="parameter-item">
-            <div class="param-title">{{ param.name }}</div>
-            <div class="param-value" :style="{color: getStatusColor(param)}">{{ param.value }}{{ param.unit }}</div>
-            <div class="param-gauge">
-              <ParameterChart 
-                chartType="gauge"
-                paramGroup="曳引机" 
-                :parameters="[param]" 
-              />
-            </div>
-            <div class="param-range">正常范围: {{ param.normal }}</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 其他参数模块 -->
-      <div class="other-parameters-grid">
-        <!-- 曳引钢丝绳参数模块 -->
-        <div class="panel parameter-module">
-          <div class="module-header">
-            <h2 class="section-title">钢丝绳参数</h2>
-            <div class="module-icon">🔗</div>
-          </div>
-          <div class="parameter-content">
-            <ParameterChart 
-              chartType="bar"
-              paramGroup="曳引钢丝绳" 
-              :parameters="systemData.parameters.filter(p => p.group === '曳引钢丝绳')" 
-            />
-          </div>
-        </div>
-        
-        <!-- 制动器参数模块 -->
-        <div class="panel parameter-module">
-          <div class="module-header">
-            <h2 class="section-title">制动器参数</h2>
-            <div class="module-icon">🛑</div>
-          </div>
-          <div class="parameter-content">
-            <ParameterChart 
-              chartType="radar"
-              paramGroup="制动器" 
-              :parameters="systemData.parameters.filter(p => p.group === '制动器')" 
-            />
-          </div>
-        </div>
-      </div>
-      
-      <!-- 维护记录放在最下面 -->
-      <div class="maintenance-section panel">
-        <h2 class="section-title">维护记录</h2>
-        <div class="maintenance-chart-container">
-          <MaintenanceChart :records="systemData.maintenanceRecords" />
         </div>
       </div>
     </div>
@@ -437,346 +615,283 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   box-sizing: border-box;
   color: #e2e8f0;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .system-content {
-  padding: 20px;
-  max-width: 1800px;
+  padding: 0; /* 移除水平内边距，解决右侧偏移问题 */
+  max-width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 3D模型区域样式 */
-.model-3d-container {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(23, 36, 65, 0.6);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 20px;
-  border-left: 4px solid #3498db;
-}
-
-.model-3d-placeholder {
-  height: 300px;
-  width: 100%;
-  background: rgba(30, 45, 75, 0.4);
+/* 悬浮标题样式 */
+.floating-header {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+  height: auto;
+  line-height: 1;
+  background: transparent;
   border-radius: 8px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.system-title {
+  margin: 0;
+  padding: 8px 20px;
+  font-size: 1.6rem;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  display: inline-block;
+}
+
+/* 三列布局 - 调整列宽比例 */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr; /* 修改比例，增加中间列的宽度 */
+  gap: 10px;
+  margin-bottom: 10px;
+  margin-top: 30px;
+  width: 100%;
+}
+
+/* 移除旧的标题样式 */
+.simplified-header {
+  display: none;
+}
+
+/* 左列样式 */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* 从20px减小到10px，减少上下间距 */
+  padding-left: 10px;
+}
+
+/* 中间列样式 */
+.center-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.model-3d-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.model-loading {
-  font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.detail-header {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: linear-gradient(to right, rgba(23, 36, 65, 0.8), rgba(28, 43, 72, 0.6));
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 20px 30px;
-  border-left: 4px solid #3498db;
-}
-
-.system-title {
+/* 右列样式 */
+.right-column {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
+  flex-direction: column;
+  gap: 10px; /* 从15px减小到10px，与左侧保持一致 */
+  width: 100%;
+  padding-right: 10px; /* 从5px增加到10px，与左侧保持一致 */
 }
 
-.system-icon {
-  font-size: 2.5rem;
-  background: rgba(52, 152, 219, 0.2);
-  padding: 12px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.right-column .panel {
+  padding: 8px; /* 略微减小内边距 */
 }
 
-.system-title h1 {
-  margin: 0;
-  font-size: 2rem;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.system-info {
-  padding: 0;
-}
-
-.system-info p {
-  margin: 0 0 15px 0;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.6;
-  font-size: 1.05rem;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.info-item {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 12px 15px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.95rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* 关键指标和历史趋势合并面板 */
-.indicators-trends-panel {
-  margin-bottom: 20px;
-  padding: 20px;
-}
-
-.panel-columns {
+.right-column .panel:last-child {
+  flex-grow: 1; /* 让最后一个面板（历史趋势）填满剩余空间 */
   display: flex;
-  gap: 30px;
+  flex-direction: column;
 }
 
-.left-panel, .right-panel {
-  flex: 1;
-}
-
-/* 曳引机参数样式 - 在一个框内的水平排列 */
-.traction-parameters {
-  margin-bottom: 20px;
-  padding: 25px;
-}
-
-.parameter-row {
+/* 参数样式 */
+.parameter-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 15px; 
+  row-gap: 0px; /* 从5px减小到0px，完全移除行间距 */
+  margin-bottom: 0px; /* 从5px减小到0px */
 }
 
-.parameter-gauge-item {
+.parameter-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-}
-
-.param-title {
-  font-size: 1.2rem;
-  color: #fff;
-  margin: 0 0 10px 0;
-  text-align: center;
-}
-
-.param-value {
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 10px;
+  padding: 0;
+  margin-bottom: -25px; /* 从-10px减少到-25px，进一步压缩垂直空间 */
+  width: 100%; /* 确保参数项占满列宽 */
 }
 
 .param-gauge {
   width: 100%;
-  height: 320px;
+  height: 95px; /* 从105px减小到95px */
+  margin-top: -50px; /* 从-40px进一步减少到-50px，大幅减少参数名称与仪表盘的距离 */
 }
 
 .param-range {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
-  margin-top: 10px;
+  display: none;
 }
 
-/* 其他参数模块网格 */
-.other-parameters-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
+/* 面板样式 */
 .panel {
-  background: rgba(23, 36, 65, 0.6);
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
 .panel:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: linear-gradient(to right, #3498db, #1abc9c);
+  display: none;
 }
 
 .section-title {
-  margin: 0 0 20px 0;
-  color: #fff;
-  font-size: 1.25rem;
-  font-weight: 600;
-  position: relative;
-  padding-bottom: 10px;
+  display: none;
 }
 
-.section-title:after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 40px;
-  height: 3px;
-  background: #3498db;
-}
-
+/* 模块样式 */
 .module-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  display: none;
 }
 
 .module-icon {
-  font-size: 2rem;
-  background: rgba(52, 152, 219, 0.15);
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  display: none;
 }
 
+/* 图表容器 */
 .trend-chart-container {
-  height: 400px;
-  width: 100%;
-  position: relative;
-}
-
-/* 维护记录放在底部，宽度100% */
-.maintenance-section {
-  margin-top: 20px;
-  width: 100%;
-}
-
-.maintenance-chart-container {
-  height: 350px;
+  flex-grow: 1; /* 让图表容器填满其父面板的空间 */
   width: 100%;
   position: relative;
 }
 
 .key-indicators-chart {
+  height: 220px; /* 设置一个固定的基础高度 */
   width: 100%;
-  height: 400px;
   position: relative;
-  padding-top: 30px; /* 为图例提供额外空间 */
 }
 
 .chart {
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* 增加关键指标参数样式 */
+/* 图例样式 */
 .indicators-legend {
   display: flex;
+  flex-direction: row;
   justify-content: center;
-  margin-bottom: 15px;
-  flex-wrap: nowrap;
-  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 5px;
+  width: 100%;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   white-space: nowrap;
+  font-size: 0.8rem;
 }
 
 .legend-color {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 8px;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
   border-radius: 2px;
 }
 
-/* 针对不同屏幕大小的响应式调整 */
-@media (max-width: 1600px) {
-  .parameter-row {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .other-parameters-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .panel-columns {
-    flex-direction: column;
-    gap: 20px;
-  }
+/* 参数内容高度限制 */
+.parameter-content {
+  height: 100px; /* 从80px增加到100px，增加钢丝绳参数图表高度 */
+  overflow: hidden;
 }
 
-@media (max-width: 1400px) {
-  .panel-columns {
-    flex-direction: column;
+/* 特别为曳引机参数面板添加的样式 */
+.traction-parameters {
+  padding: 2px;
+  margin-bottom: 2px;
+  width: 100%;
+  height: auto;
+  min-height: 180px; /* 从220px减少到180px，进一步缩小整体高度 */
+}
+
+.panel.parameter-module {
+  padding: 8px; /* 略微减小内边距 */
+}
+
+/* 调整模块图标大小 */
+.module-icon {
+  font-size: 1.2rem;
+  width: 30px;
+  height: 30px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1600px) {
+  .main-content {
+    grid-template-columns: 1fr 1.3fr 1fr; /* 保持一致的比例 */
+    gap: 6px;
   }
   
-  .key-indicators-chart {
-    height: 350px;
+  .parameter-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px; /* 从5px增加到15px */
+    row-gap: 15px; /* 从-30px修改为15px */
   }
   
-  .trend-chart-container {
-    height: 350px;
+  .parameter-item {
+    margin-bottom: 0; /* 从-40px修改为0 */
+  }
+  
+  .left-column, .right-column {
+    gap: 6px;
   }
 }
 
 @media (max-width: 1200px) {
-  .parameter-row {
-    grid-template-columns: repeat(2, 1fr);
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    width: 100%;
   }
   
-  .other-parameters-grid {
-    grid-template-columns: 1fr;
+  .model-3d-container {
+    min-height: 400px;
+  }
+  
+  .simplified-header {
+    padding: 5px 0;
+  }
+  
+  .system-content {
+    padding: 0;
   }
 }
 
 @media (max-width: 768px) {
   .system-content {
-    padding: 15px;
+    padding: 5px;
   }
   
-  .parameter-row {
+  .parameter-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .detail-header {
-    padding: 15px;
-  }
-  
-  .system-title h1 {
-    font-size: 1.5rem;
-  }
-  
-  .system-icon {
-    font-size: 2rem;
-    padding: 8px;
-  }
-  
-  .key-indicators-chart {
-    height: 300px;
-  }
-  
-  .trend-chart-container {
-    height: 300px;
-  }
-  
-  .param-gauge {
-    height: 180px;
   }
 }
 </style> 

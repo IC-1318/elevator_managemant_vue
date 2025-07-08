@@ -1,9 +1,16 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import ParameterChart from '../components/ParameterChart.vue';
-import MaintenanceChart from '../components/MaintenanceChart.vue';
 import SystemDashboard from '../components/SystemDashboard.vue';
 import * as echarts from 'echarts/core';
+import { use } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
+import { GaugeChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, TitleComponent } from 'echarts/components';
+import DoorModelViewer from '../components/DoorModelViewer.vue';
+
+// 注册必需的组件
+use([CanvasRenderer, GaugeChart, GridComponent, TooltipComponent, TitleComponent]);
 
 const systemId = 'sys-004';
 
@@ -11,6 +18,8 @@ const systemId = 'sys-004';
 const systemData = ref(null);
 // 定时器引用
 let dataUpdateInterval = null;
+// 存储所有仪表盘图表实例
+const gaugeCharts = ref([]);
 
 // 为不同的参数组分配不同的图表类型
 const getChartTypeForGroup = (group) => {
@@ -62,7 +71,185 @@ const fetchSystemData = () => {
   };
 };
 
-// 更新系统数据
+// 创建仪表盘图表
+const createGaugeCharts = () => {
+  if (!systemData.value) return;
+  
+  // 清除之前的图表实例
+  gaugeCharts.value.forEach(chart => {
+    chart.dispose();
+  });
+  gaugeCharts.value = [];
+  
+  // 获取门铁装置参数
+  const doorParams = systemData.value.parameters.filter(p => p.group === '门铁装置');
+  
+  // 获取所有仪表盘DOM元素
+  const gaugeEls = document.querySelectorAll('.param-gauge');
+  if (!gaugeEls || gaugeEls.length === 0) return;
+  
+  // 为每个参数创建仪表盘
+  doorParams.forEach((param, index) => {
+    // 获取DOM元素
+    const el = gaugeEls[index];
+    if (!el) return;
+    
+    // 获取参数范围值
+    let min = 0;
+    let max = 100;
+    let warning = 75;
+    let danger = 90;
+    
+    if (param.name === '触点电阻') {
+      min = 0; 
+      max = 1.5;
+      warning = 0.45;
+      danger = 1.0;
+    } else if (param.name === '机械闭合深度') {
+      min = 0;
+      max = 15;
+      warning = 7.5;
+      danger = 5.0;
+    }
+    
+    // 创建图表实例
+    const chart = echarts.init(el);
+    
+    // 仪表盘配置
+    const option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        formatter: `{b}: {c}${param.unit}`,
+        backgroundColor: 'rgba(40, 40, 40, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        textStyle: {
+          color: '#fff'
+        }
+      },
+      series: [
+        {
+          name: param.name,
+          type: 'gauge',
+          center: ['50%', '55%'],
+          radius: '75%',
+          min,
+          max,
+          startAngle: 205,
+          endAngle: -25,
+          splitNumber: 5,
+          itemStyle: {
+            color: '#58D9F9'
+          },
+          progress: {
+            show: true,
+            width: 10,
+            itemStyle: {
+              shadowBlur: 0
+            }
+          },
+          pointer: {
+            show: true,
+            width: 3,
+            length: '60%',
+            itemStyle: {
+              color: '#58D9F9'
+            }
+          },
+          axisLine: {
+            lineStyle: {
+              width: 12,
+              color: [
+                [warning / max, '#5CCEA8'],
+                [danger / max, '#E2A037'],
+                [1, '#E25837']
+              ],
+              shadowBlur: 0
+            }
+          },
+          axisTick: {
+            distance: -24,
+            length: 3,
+            lineStyle: {
+              color: '#fff',
+              width: 1
+            }
+          },
+          splitLine: {
+            distance: -26,
+            length: 6,
+            lineStyle: {
+              color: '#fff',
+              width: 1.5
+            }
+          },
+          axisLabel: {
+            distance: -14,
+            color: '#fff',
+            fontSize: 10
+          },
+          title: {
+            show: true,
+            offsetCenter: [0, '65%'],
+            fontSize: 10,
+            color: '#58D9F9',
+            fontWeight: 'bold',
+            formatter: param.name
+          },
+          detail: {
+            valueAnimation: true,
+            fontSize: 16,
+            fontWeight: 'bolder',
+            offsetCenter: [0, '25%'],
+            formatter: `{value}${param.unit}`,
+            color: '#58D9F9',
+            backgroundColor: 'transparent'
+          },
+          data: [
+            {
+              value: param.value,
+              name: param.name
+            }
+          ]
+        }
+      ]
+    };
+    
+    // 设置图表选项
+    chart.setOption(option);
+    
+    // 保存图表实例
+    gaugeCharts.value.push(chart);
+  });
+};
+
+// 更新仪表盘数据
+const updateGaugeCharts = () => {
+  if (gaugeCharts.value.length === 0) return;
+  
+  // 获取门铁装置参数
+  const doorParams = systemData.value.parameters.filter(p => p.group === '门铁装置');
+  
+  // 更新每个仪表盘的数据
+  doorParams.forEach((param, index) => {
+    if (index < gaugeCharts.value.length) {
+      const chart = gaugeCharts.value[index];
+      chart.setOption({
+        series: [
+          {
+            data: [
+              {
+                value: param.value,
+                name: param.name
+              }
+            ]
+          }
+        ]
+      });
+    }
+  });
+};
+
+// 修改updateSystemData函数，添加对仪表盘的更新
 const updateSystemData = () => {
   if (!systemData.value) return;
   
@@ -104,6 +291,9 @@ const updateSystemData = () => {
     ...systemData.value.timeLabels.slice(1, 6),
     '今日'
   ];
+
+  // 更新仪表盘
+  updateGaugeCharts();
 };
 
 // 获取关键参数用于系统概览
@@ -264,61 +454,101 @@ const getTrendData = () => {
 onMounted(() => {
   fetchSystemData();
   
+  // 创建仪表盘图表
+  setTimeout(() => {
+    createGaugeCharts();
+  }, 100);
+  
   // 设置定时更新数据，每3秒更新一次
   dataUpdateInterval = setInterval(() => {
     updateSystemData();
   }, 3000);
 });
 
-// 组件卸载前清除定时器
+// 窗口大小变化时重新调整图表
+window.addEventListener('resize', () => {
+  gaugeCharts.value.forEach(chart => {
+    chart.resize();
+  });
+});
+
+// 组件卸载前清除定时器和事件监听
 onBeforeUnmount(() => {
   if (dataUpdateInterval) {
     clearInterval(dataUpdateInterval);
     dataUpdateInterval = null;
   }
+  
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', () => {});
+  
+  // 销毁所有图表实例
+  gaugeCharts.value.forEach(chart => {
+    chart.dispose();
+  });
+  gaugeCharts.value = [];
 });
 </script>
 
 <template>
   <div class="system-view">
     <div v-if="systemData" class="system-content">
-      <header class="system-header panel">
-        <div class="system-info">
-          <div class="system-title-wrapper">
-            <h1 class="system-title">{{ systemData.name }}</h1>
-            <div class="system-icon">{{ systemData.icon }}</div>
+      <!-- 悬浮标题 -->
+      <div class="floating-header">
+        <h1 class="system-title">{{ systemData.name }}</h1>
+      </div>
+
+      <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
+      <div class="main-content">
+        <!-- 左侧参数列 -->
+        <div class="left-column">
+          <!-- 门铁装置参数 - 改为仪表盘 -->
+          <div class="panel door-parameters">
+            <div class="parameter-grid">
+              <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '门铁装置')" 
+                   :key="index" 
+                   class="parameter-item">
+                <div class="param-gauge"></div>
+              </div>
+            </div>
           </div>
-          <p class="system-description">{{ systemData.description }}</p>
-          <div class="system-meta">
-            <div class="meta-item">{{ systemData.model }}</div>
-            <div class="meta-item">{{ systemData.manufacturer }}</div>
-            <div class="meta-item">{{ systemData.installDate }}</div>
-            <div class="meta-item">{{ systemData.maintenanceCycle }}</div>
+          
+          <!-- 开关门参数模块 -->
+          <div class="panel parameter-module">
+            <div class="parameter-content">
+              <ParameterChart 
+                chartType="bar"
+                paramGroup="开关门" 
+                :parameters="systemData.parameters.filter(p => p.group === '开关门')" 
+              />
+            </div>
           </div>
         </div>
-      </header>
 
-      <!-- 关键指标和历史趋势结合面板 -->
-      <div class="indicators-trends-panel panel">
-        <div class="panel-columns">
+        <!-- 中间3D模型列 -->
+        <div class="center-column">
+          <div class="model-3d-container">
+            <DoorModelViewer :auto-rotate="true" />
+          </div>
+        </div>
+
+        <!-- 右侧图表列 -->
+        <div class="right-column">
           <!-- 关键指标部分 -->
-          <div class="left-panel">
-            <h2 class="section-title">关键指标</h2>
-            <!-- 自定义图例 -->
+          <div class="panel">
+            <div class="key-indicators-chart">
+              <v-chart class="chart" :option="keyIndicatorsChartOption" autoresize />
+            </div>
             <div class="indicators-legend">
               <div class="legend-item" v-for="(param, index) in getKeyParameters()" :key="index">
                 <span class="legend-color" :style="{backgroundColor: getParamColor(param.displayName)}"></span>
                 <span>{{ param.displayName }}: {{ param.value }}{{ param.unit }}</span>
               </div>
             </div>
-            <div class="key-indicators-chart">
-              <v-chart class="chart" :option="keyIndicatorsChartOption" autoresize />
-            </div>
           </div>
           
           <!-- 历史趋势部分 -->
-          <div class="right-panel">
-            <h2 class="section-title">历史趋势</h2>
+          <div class="panel">
             <div class="trend-chart-container">
               <ParameterChart 
                 v-if="getTrendData()"
@@ -328,53 +558,6 @@ onBeforeUnmount(() => {
               />
             </div>
           </div>
-        </div>
-      </div>
-      
-      <!-- 门系统主要参数 - 在一个框内水平排列 -->
-      <div class="door-parameters panel">
-        <h2 class="section-title">门系统主要参数</h2>
-        <div class="parameter-row">
-          <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '开关门')" 
-               :key="index" 
-               class="parameter-gauge-item">
-            <h3 class="param-title">{{ param.name }}</h3>
-            <div class="param-value" :style="{color: getStatusColor(param)}">{{ param.value }}{{ param.unit }}</div>
-            <div class="param-gauge">
-              <ParameterChart 
-                chartType="gauge"
-                paramGroup="开关门" 
-                :parameters="[param]" 
-              />
-            </div>
-            <div class="param-range">正常范围: {{ param.normal }}</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 其他参数模块 -->
-      <div class="other-parameters-grid">
-        <!-- 门铁装置参数模块 -->
-        <div class="panel parameter-module">
-          <div class="module-header">
-            <h2 class="section-title">门铁装置参数</h2>
-            <div class="module-icon">🔄</div>
-          </div>
-          <div class="parameter-content">
-            <ParameterChart 
-              chartType="radar"
-              paramGroup="门铁装置" 
-              :parameters="systemData.parameters.filter(p => p.group === '门铁装置')" 
-            />
-          </div>
-        </div>
-      </div>
-      
-      <!-- 维护记录放在最下面 -->
-      <div class="maintenance-section panel">
-        <h2 class="section-title">维护记录</h2>
-        <div class="maintenance-chart-container">
-          <MaintenanceChart :records="systemData.maintenanceRecords" />
         </div>
       </div>
     </div>
@@ -391,311 +574,276 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   box-sizing: border-box;
   color: #e2e8f0;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .system-content {
-  padding: 20px;
-  max-width: 1800px;
+  padding: 0; /* 移除水平内边距，解决右侧偏移问题 */
+  max-width: 100%;
   margin: 0 auto;
-}
-
-/* 3D模型区域样式 */
-.model-3d-container {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(23, 36, 65, 0.6);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 20px;
-  border-left: 4px solid #3498db;
-}
-
-.model-3d-placeholder {
-  height: 300px;
-  width: 100%;
-  background: rgba(30, 45, 75, 0.4);
-  border-radius: 8px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  height: 100vh; /* 设置为全屏高度 */
+  overflow: hidden; /* 防止滚动条 */
 }
 
-.model-loading {
-  font-size: 1.2rem;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.detail-header {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: linear-gradient(to right, rgba(23, 36, 65, 0.8), rgba(28, 43, 72, 0.6));
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 20px 30px;
-  border-left: 4px solid #3498db;
+/* 悬浮标题样式 */
+.floating-header {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+  height: auto;
+  line-height: 1;
+  background: transparent;
+  border-radius: 8px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .system-title {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-
-.system-icon {
-  font-size: 2.5rem;
-  background: rgba(52, 152, 219, 0.2);
-  padding: 12px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.system-title h1 {
   margin: 0;
-  font-size: 2rem;
+  padding: 8px 20px;
+  font-size: 1.6rem;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  display: inline-block;
 }
 
-.system-info {
-  padding: 0;
-}
-
-.system-info p {
-  margin: 0 0 15px 0;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.6;
-  font-size: 1.05rem;
-}
-
-.info-grid {
+/* 三列布局 - 调整列宽比例 */
+.main-content {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1.2fr 1fr 1.2fr; /* 调整比例，增加左右列宽度，减少中间列宽度 */
+  gap: 15px; /* 增加列间距 */
+  margin-bottom: 0; /* 移除底部边距 */
+  margin-top: 50px; /* 为悬浮标题留出空间 */
+  width: 100%;
+  height: calc(100vh - 60px); /* 减少更多空间，只为标题留出空间 */
+  flex: 1; /* 让主内容填满剩余空间 */
 }
 
-.info-item {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 12px 15px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.95rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* 关键指标和历史趋势合并面板 */
-.indicators-trends-panel {
-  margin-bottom: 20px;
-  padding: 20px;
-}
-
-.panel-columns {
-  display: flex;
-  gap: 30px;
-}
-
-.left-panel, .right-panel {
-  flex: 1;
-}
-
-/* 门系统参数样式 - 在一个框内的水平排列 */
-.door-parameters {
-  margin-bottom: 20px;
-  padding: 25px;
-}
-
-.parameter-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.parameter-gauge-item {
+/* 左列样式 */
+.left-column {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  gap: 10px; /* 从20px减小到10px，减少上下间距 */
+  padding-left: 10px;
+  height: 100%; /* 使用父容器的高度 */
 }
 
-.param-title {
-  font-size: 1.2rem;
-  color: #fff;
-  margin: 0 0 10px 0;
-  text-align: center;
-}
-
-.param-value {
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.param-gauge {
-  width: 100%;
-  height: 320px;
-}
-
-.param-range {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
-  margin-top: 10px;
-}
-
-/* 其他参数模块网格 */
-.other-parameters-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.panel {
-  background: rgba(23, 36, 65, 0.6);
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  position: relative;
-  overflow: hidden;
-}
-
-.panel:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: linear-gradient(to right, #3498db, #1abc9c);
-}
-
-.section-title {
-  margin: 0 0 20px 0;
-  color: #fff;
-  font-size: 1.25rem;
-  font-weight: 600;
-  position: relative;
-  padding-bottom: 10px;
-}
-
-.section-title:after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 40px;
-  height: 3px;
-  background: #3498db;
-}
-
-.module-header {
+/* 中间列样式 */
+.center-column {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%; /* 使用父容器的高度 */
 }
 
-.module-icon {
-  font-size: 2rem;
-  background: rgba(52, 152, 219, 0.15);
-  width: 50px;
-  height: 50px;
+.model-3d-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* 右列样式 */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* 从15px减小到10px，与左侧保持一致 */
+  width: 100%;
+  padding-right: 10px; /* 从5px增加到10px，与左侧保持一致 */
+  height: 100%; /* 使用父容器的高度 */
+}
+
+.right-column .panel {
+  padding: 8px; /* 略微减小内边距 */
+}
+
+.right-column .panel:last-child {
+  flex: 1; /* 让最后一个面板（历史趋势）填满剩余空间 */
+  display: flex;
+  flex-direction: column;
+  min-height: 280px; /* 适当减少高度 */
+  margin-bottom: 20px; /* 增加底部边距留出空白 */
+}
+
+/* 面板样式 */
+.panel {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* 参数模块样式 */
+.parameter-module {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px; /* 增加底部边距留出空白 */
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  flex: 1; /* 让开关门参数模块自适应填充剩余空间 */
+  display: flex;
+  flex-direction: column;
+  min-height: 520px; /* 适当减少高度为底部留白 */
+}
+
+.door-parameters {
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 10px;
+  padding: 20px 15px; /* 增加上边距 */
+  margin-bottom: 10px;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  height: auto;
+  flex: 0 0 auto; /* 不允许收缩，保持固定大小 */
+  min-height: 420px; /* 适当减少高度 */
+}
+
+/* 确保图表容器有足够的高度 */
+.parameter-content {
+  flex-grow: 1; /* 让图表容器填充剩余空间 */
+  min-height: 380px; /* 适当减少高度 */
+  overflow: hidden;
+  padding-top: 15px; /* 增加上边距 */
+}
+
+/* 图表容器 */
 .trend-chart-container {
-  height: 400px;
-  width: 100%;
-  position: relative;
-}
-
-/* 维护记录放在底部，宽度100% */
-.maintenance-section {
-  margin-top: 20px;
-  width: 100%;
-}
-
-.maintenance-chart-container {
-  height: 350px;
+  flex-grow: 1; /* 让图表容器填满其父面板的空间 */
   width: 100%;
   position: relative;
 }
 
 .key-indicators-chart {
+  height: 260px; /* 适当减少图表高度 */
   width: 100%;
-  height: 400px;
   position: relative;
-  padding-top: 30px; /* 为图例提供额外空间 */
+  flex: 0 0 auto; /* 保持固定高度 */
+  margin-top: 15px; /* 增加上边距 */
 }
 
 .chart {
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* 增加关键指标参数样式 */
+/* 图例样式 */
 .indicators-legend {
   display: flex;
+  flex-direction: row;
   justify-content: center;
-  margin-bottom: 15px;
-  flex-wrap: nowrap;
-  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 5px;
+  width: 100%;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   white-space: nowrap;
+  font-size: 0.8rem;
 }
 
 .legend-color {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  margin-right: 8px;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
   border-radius: 2px;
 }
 
-/* 针对不同屏幕大小的响应式调整 */
-@media (max-width: 1600px) {
-  .parameter-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .other-parameters-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .panel-columns {
-    flex-direction: column;
-    gap: 20px;
-  }
+/* 参数样式 */
+.parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 15px; 
+  row-gap: 10px; /* 恢复适当的行间距 */
+  margin-bottom: 0px;
 }
 
-@media (max-width: 1400px) {
-  .panel-columns {
-    flex-direction: column;
+.parameter-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 5px;
+  margin-bottom: 0; /* 重置边距 */
+  width: 100%; /* 确保参数项占满列宽 */
+}
+
+.param-gauge {
+  width: 100%;
+  height: 120px; /* 增加仪表盘高度 */
+  margin-top: 0; /* 重置上边距 */
+}
+
+.param-range {
+  display: none;
+}
+
+/* 响应式调整 */
+@media (max-width: 1600px) {
+  .main-content {
+    grid-template-columns: 1fr 1.3fr 1fr; /* 保持一致的比例 */
+    gap: 6px;
   }
   
-  .key-indicators-chart {
-    height: 350px;
+  .parameter-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 15px; /* 从5px增加到15px */
+    row-gap: 15px; /* 从-30px修改为15px */
   }
   
-  .trend-chart-container {
-    height: 350px;
+  .parameter-item {
+    margin-bottom: 0; /* 从-40px修改为0 */
+  }
+  
+  .left-column, .right-column {
+    gap: 6px;
   }
 }
 
 @media (max-width: 1200px) {
-  .parameter-row {
-    grid-template-columns: repeat(1, 1fr);
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    width: 100%;
   }
   
-  .other-parameters-grid {
-    grid-template-columns: repeat(1, 1fr);
+  .model-3d-container {
+    min-height: 400px;
+  }
+  
+  .simplified-header {
+    padding: 5px 0;
+  }
+  
+  .system-content {
+    padding: 0;
   }
 }
-</style> 
+
+@media (max-width: 768px) {
+  .system-content {
+    padding: 5px;
+  }
+  
+  .parameter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
