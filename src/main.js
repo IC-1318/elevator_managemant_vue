@@ -58,14 +58,9 @@ echarts.use([
   CanvasRenderer
 ])
 
-// 设置全局请求拦截器，添加JWT到所有请求 -- 已移除
-// AuthService.setupAxiosInterceptors();
-
-// 如果本地存储中有token，设置请求头 -- 已移除
-// const token = AuthService.getToken();
-// if (token) {
-//   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-// }
+// 配置axios默认设置
+axios.defaults.withCredentials = true; // 支持cookie
+axios.defaults.timeout = 10000; // 设置请求超时时间
 
 const app = createApp(App)
 app.use(router)

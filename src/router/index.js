@@ -87,7 +87,14 @@ router.beforeEach((to, from, next) => {
   const userRole = AuthService.getUserRole();
   
   if (to.name === 'admin-login' && isAuthenticated) {
-    next({ name: 'dashboard' });
+    // 根据用户角色重定向到对应的默认页面
+    if (userRole === 'admin') {
+      next({ name: 'dashboard' });
+    } else if (userRole === 'maintenance') {
+      next({ name: 'maintenance-dashboard' });
+    } else {
+      next({ name: 'admin-login' });
+    }
     return;
   }
   
@@ -101,7 +108,14 @@ router.beforeEach((to, from, next) => {
   if (to.meta.roles && !to.meta.roles.includes(userRole)) {
     // 如果角色不匹配，重定向到他们有权访问的页面或登录页
     if (isAuthenticated) {
-      next({ name: 'dashboard' }); // admin用户默认页
+      // 根据用户角色重定向到对应的默认页面
+      if (userRole === 'admin') {
+        next({ name: 'dashboard' });
+      } else if (userRole === 'maintenance') {
+        next({ name: 'maintenance-dashboard' });
+      } else {
+        next({ name: 'admin-login' });
+      }
     } else {
       next({ name: 'admin-login' });
     }

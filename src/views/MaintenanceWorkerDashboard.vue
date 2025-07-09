@@ -1,9 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { maintenanceApi } from '../api';
 import { ElMessage } from 'element-plus';
+import AuthService from '../services/authService';
 
-const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+const router = useRouter();
+const userInfo = ref(AuthService.getCurrentUser() || {});
+const userRole = ref(AuthService.getUserRole());
 const loading = ref(false);
 const pendingTasks = ref([]);
 const completedTasks = ref([]);
@@ -14,7 +18,7 @@ const fetchTasks = async () => {
   try {
     // 获取分配给当前维修人员的任务
     const params = {
-      userId: userInfo.userId,
+      userId: userInfo.value?.id,
       current: 1,
       size: 100
     };
@@ -39,7 +43,7 @@ const completeTask = async (task) => {
   try {
     const updateData = {
       id: task.id,
-      userId: task.userId || userInfo.userId,
+      userId: task.userId || userInfo.value?.id,
       status: '已维护',
       remark: task.remark || '维修完成'
     };
@@ -63,6 +67,20 @@ const viewTaskDetail = (task) => {
   console.log('查看任务详情:', task);
 };
 
+// 登出功能
+const handleLogout = async () => {
+  try {
+    await AuthService.logout();
+    ElMessage.success('已成功登出');
+    router.push('/login');
+  } catch (error) {
+    console.error('登出失败:', error);
+    ElMessage.error('登出失败，请重试');
+    // 即使登出失败，也跳转到登录页
+    router.push('/login');
+  }
+};
+
 // 页面挂载时获取数据
 onMounted(() => {
   fetchTasks();
@@ -74,8 +92,11 @@ onMounted(() => {
     <div class="header-panel">
       <h1>维修人员工作台</h1>
       <div class="user-info">
-        <span>欢迎, {{ userInfo.username }}</span>
-        <el-button size="small" @click="fetchTasks" :loading="loading">刷新数据</el-button>
+        <span>欢迎, {{ userInfo?.userName || userInfo?.userPhone }}</span>
+        <div class="button-group">
+          <el-button size="small" @click="fetchTasks" :loading="loading">刷新数据</el-button>
+          <el-button size="small" type="danger" @click="handleLogout">登出</el-button>
+        </div>
       </div>
     </div>
     
@@ -163,6 +184,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 15px;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
 }
 
 .task-list {

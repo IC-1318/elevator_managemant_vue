@@ -15,9 +15,15 @@ onMounted(() => {
   userRole.value = AuthService.getUserRole();
 });
 
-const handleLogout = () => {
-  AuthService.logout();
-  router.push('/login');
+const handleLogout = async () => {
+  try {
+    await AuthService.logout();
+    router.push('/login');
+  } catch (error) {
+    console.error('登出失败:', error);
+    // 即使登出失败，也跳转到登录页
+    router.push('/login');
+  }
 };
 
 const toggleAdminProfile = () => {
@@ -303,4 +309,4 @@ const adminPermissions = {
 .logout-button svg {
   margin-right: 5px;
 }
-</style> 
+</style>

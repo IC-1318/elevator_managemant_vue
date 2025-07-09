@@ -4,22 +4,22 @@ import { useRouter } from 'vue-router';
 import AuthService from '../services/authService';
 
 const router = useRouter();
-const username = ref('');
+const userPhone = ref('');
 const password = ref('');
 const rememberMe = ref(false);
 const errorMessage = ref('');
 const isLoading = ref(false);
 
 const handleLogin = async () => {
-  if (!username.value || !password.value) {
-    errorMessage.value = '请输入用户名和密码';
+  if (!userPhone.value || !password.value) {
+    errorMessage.value = '请输入手机号/邮箱和密码';
     return;
   }
   
   isLoading.value = true;
   
   try {
-    const result = await AuthService.login(username.value, password.value);
+    const result = await AuthService.login(userPhone.value, password.value);
     
     if (result.success) {
       // 登录成功后不再需要保存用户数据
@@ -59,7 +59,7 @@ const handleLogin = async () => {
       
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
-          <label for="username">用户名</label>
+          <label for="userPhone">手机号/邮箱</label>
           <div class="input-wrapper">
             <span class="input-icon">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -69,9 +69,9 @@ const handleLogin = async () => {
             </span>
             <input 
               type="text" 
-              id="username" 
-              v-model="username" 
-              placeholder="请输入用户名"
+              id="userPhone" 
+              v-model="userPhone" 
+              placeholder="请输入手机号或邮箱"
               autocomplete="username"
             />
           </div>
@@ -317,4 +317,4 @@ const handleLogin = async () => {
   opacity: 0.6;
   font-family: monospace;
 }
-</style> 
+</style>
