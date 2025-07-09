@@ -6,6 +6,8 @@ import TechGridBackground from '../components/TechGridBackground.vue';
 import { useAIAnalysis } from '../composables/useAIAnalysis.js';
 import aiSimulationApi from '../api/aiSimulation.js'; // 引入API
 import AuthService from '../services/authService'; // 引入AuthService
+import { maintenanceApi } from '../api';
+import abnormalDataApi from '../api/abnormalData';
 
 const router = useRouter();
 const isAIExpanded = ref(false);
@@ -178,10 +180,62 @@ const adminInfo = {
 // 模拟系统信息
 const systemInfo = ref({
   version: 'v1.0.0',
-  uptime: '15天8小时37分钟',
+  uptime: '2年45天',
   totalElevators: 12,
-  activeAlerts: 3,
-  pendingMaintenance: 2,
+  activeAlerts: 0,
+  pendingMaintenance: 0,
+});
+
+// 获取活跃警报和待维护数据
+const fetchSystemStatusData = async () => {
+  try {
+    // 获取活跃警报数据（近一天的警报）
+    const alertParams = {
+      current: 1,
+      size: 1000, // 获取足够多的记录以便计算总数
+      // 使用时间范围参数，如果API支持的话
+      timeRange: '1d' // 假设API支持这样的参数，实际使用时可能需要调整
+    };
+    
+    const alertResponse = await abnormalDataApi.getAbnormalData(alertParams);
+    if (alertResponse.data && alertResponse.data.code === 200) {
+      // 计算近一天的警报数量
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
+      // 过滤出近一天的警报
+      const recentAlerts = alertResponse.data.data.records.filter(alert => {
+        const alertDate = new Date(alert.createTime || alert.time);
+        return alertDate >= oneDayAgo;
+      });
+      
+      systemInfo.value.activeAlerts = recentAlerts.length;
+    }
+    
+    // 获取待维护数据（状态为未维修的记录）
+    const maintenanceParams = {
+      current: 1,
+      size: 1000,
+      status: '未维修' // 假设API支持按状态过滤，实际使用时可能需要调整
+    };
+    
+    const maintenanceResponse = await maintenanceApi.getMaintenance(maintenanceParams);
+    if (maintenanceResponse.data && maintenanceResponse.data.code === 200) {
+      // 过滤出未维修的记录
+      const pendingMaintenance = maintenanceResponse.data.data.records.filter(record => 
+        record.status === '未维修'
+      );
+      
+      systemInfo.value.pendingMaintenance = pendingMaintenance.length;
+    }
+  } catch (error) {
+    console.error('获取系统状态数据失败:', error);
+  }
+};
+
+onMounted(() => {
+  // 获取系统状态数据
+  fetchSystemStatusData();
 });
 
 // AI分析数据
@@ -318,21 +372,76 @@ const handleQuickActionClick = (route) => {
               <div class="health-gauge">
                 <div class="svg-container">
                   <svg viewBox="0 0 36 36" class="health-chart">
+                    <!-- 背景圆环 -->
                     <path class="health-circle-bg"
                       d="M18 2.0845
                         a 15.9155 15.9155 0 0 1 0 31.831
                         a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
+                    <!-- 主要进度圆环 -->
                     <path class="health-circle"
                       :stroke="systemHealth.color"
                       :stroke-dasharray="`${systemHealth.score}, 100`"
                       d="M18 2.0845
                         a 15.9155 15.9155 0 0 1 0 31.831
                         a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
+                    >
+                      <!-- 添加动画效果 -->
+                      <animate attributeName="stroke-dasharray" 
+                        :from="`0, 100`" 
+                        :to="`${systemHealth.score}, 100`" 
+                        dur="1.5s" 
+                        begin="0s" 
+                        fill="freeze"
+                        calcMode="spline"
+                        keySplines="0.42, 0, 0.58, 1"
+                      />
+                    </path>
+                    
+                    <!-- 进度条末尾的粒子效果 -->
+                    <g class="particles">
+                      <!-- 计算粒子位置：基于圆的参数方程，根据进度百分比计算角度 -->
+                      <circle 
+                        :cx="18 + 15.9155 * Math.cos((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        :cy="18 + 15.9155 * Math.sin((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        r="0.8" 
+                        :fill="systemHealth.color" 
+                        class="particle particle-1"
+                      />
+                      <circle 
+                        :cx="18 + 15.9155 * Math.cos((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        :cy="18 + 15.9155 * Math.sin((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        r="0.6" 
+                        :fill="systemHealth.color" 
+                        class="particle particle-2"
+                      />
+                      <circle 
+                        :cx="18 + 15.9155 * Math.cos((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        :cy="18 + 15.9155 * Math.sin((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        r="0.4" 
+                        :fill="systemHealth.color" 
+                        class="particle particle-3"
+                      />
+                      <circle 
+                        :cx="18 + 15.9155 * Math.cos((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        :cy="18 + 15.9155 * Math.sin((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        r="0.3" 
+                        :fill="systemHealth.color" 
+                        class="particle particle-4"
+                      />
+                      <circle 
+                        :cx="18 + 15.9155 * Math.cos((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        :cy="18 + 15.9155 * Math.sin((systemHealth.score / 100 * 360 - 90) * Math.PI / 180)" 
+                        r="0.5" 
+                        :fill="systemHealth.color" 
+                        class="particle particle-5"
+                      />
+                    </g>
                   </svg>
                   <div class="health-score-container">
-                    <div class="health-score tech-text">{{ systemHealth.score }}%</div>
+                    <div class="health-score tech-text" :style="{'color': systemHealth.color}">
+                      {{ systemHealth.score }}%
+                    </div>
                   </div>
                 </div>
                 <div class="health-status" :style="{'color': systemHealth.color}">
@@ -664,13 +773,6 @@ const handleQuickActionClick = (route) => {
   fill: none;
   stroke-width: 2.5;
   stroke-linecap: round;
-  animation: progress 1s ease-out forwards;
-}
-
-@keyframes progress {
-  0% {
-    stroke-dasharray: 0 100;
-  }
 }
 
 .health-score-container {
@@ -685,10 +787,12 @@ const handleQuickActionClick = (route) => {
 }
 
 .health-score {
-  color: #4dabf5;
   font-size: 2.5rem;
   font-weight: 700;
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  transition: color 0.5s ease;
 }
 
 .health-status {
@@ -697,6 +801,51 @@ const handleQuickActionClick = (route) => {
   text-align: center;
   width: 100%;
   margin-top: 10px;
+  transition: color 0.5s ease;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+/* 粒子动画 */
+.particle {
+  opacity: 0.8;
+  transform-origin: center;
+}
+
+.particle-1 {
+  animation: particle-float 3s infinite ease-out;
+}
+
+.particle-2 {
+  animation: particle-float 2.5s 0.2s infinite ease-out;
+}
+
+.particle-3 {
+  animation: particle-float 2.8s 0.4s infinite ease-out;
+}
+
+.particle-4 {
+  animation: particle-float 3.2s 0.1s infinite ease-out;
+}
+
+.particle-5 {
+  animation: particle-float 2.7s 0.3s infinite ease-out;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(
+      calc(var(--random-x, 1) * 3px),
+      calc(var(--random-y, -1) * 3px)
+    );
+    opacity: 0;
+  }
 }
 
 .system-info-grid {

@@ -107,7 +107,8 @@ export function useAIAnalysis(stopElevator) {
         systemId: getSysIdByName(resultData.systemName),
         systemInfo: { name: resultData.systemName, status: resultData.aiCode === 1 ? '故障' : '警告' },
         summary: resultData.aiResult || '分析完成',
-        details: [`${resultData.systemSqName}: ${resultData.eData}`]
+        details: [`${resultData.systemSqName}: ${resultData.eData}`],
+        mtDataId: resultData.mtDataId // 保存mtDataId字段，用于后续任务分配
       };
       aiRecommendation.value = resultData.建议 || '请根据分析结果进行操作。';
 
@@ -137,4 +138,4 @@ export function useAIAnalysis(stopElevator) {
     analysisStep, // 导出新状态
     generateAbnormalData,
   };
-} 
+}

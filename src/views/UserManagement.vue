@@ -56,7 +56,8 @@ const submitUser = async () => {
       // 更新用户
       response = await usersApi.updateUser({
         id: formUser.value.id,
-        position: formUser.value.position
+        position: formUser.value.position,
+        condition: formUser.value.condition
       });
     } else {
       // 添加用户
@@ -136,6 +137,7 @@ const fetchUsers = async () => {
   loading.value = true;
   
   try {
+    // 查询所有用户，不传递condition参数以获取全部用户
     const response = await usersApi.getUsers();
     
     if (response.data && response.data.code === 200) {
@@ -157,12 +159,49 @@ const fetchUsers = async () => {
     
     // 如果接口未实现，使用模拟数据以方便调试
     userList.value = [
-      { id: 1001, userName: '张三', userPhone: '13800000001', position: '维护人员', role: 'user', email: 'zhangsan@example.com' },
-      { id: 1002, userName: '李四', userPhone: '13800000002', position: '技术人员', role: 'user', email: 'lisi@example.com' },
-      { id: 1003, userName: '王五', userPhone: '13800000003', position: '管理人员', role: 'admin', email: 'wangwu@example.com' }
+      { id: 1001, userName: '张三', userPhone: '13800000001', position: '维护人员', role: 'user', email: 'zhangsan@example.com', condition: '空闲' },
+      { id: 1002, userName: '李四', userPhone: '13800000002', position: '技术人员', role: 'user', email: 'lisi@example.com', condition: '忙碌' },
+      { id: 1003, userName: '王五', userPhone: '13800000003', position: '管理人员', role: 'admin', email: 'wangwu@example.com', condition: '空闲' },
+      { id: 1004, userName: '赵六', userPhone: '13800000004', position: '维护人员', role: 'user', email: 'zhaoliu@example.com', condition: '离线' }
     ];
   } finally {
     loading.value = false;
+  }
+};
+
+// 获取用户状态样式类
+const getUserStatusClass = (condition) => {
+  switch (condition) {
+    case '空闲':
+    case '空闲中':
+    case 'active':
+      return 'status-available';
+    case '忙碌':
+    case 'busy':
+      return 'status-busy';
+    case '离线':
+    case 'offline':
+      return 'status-offline';
+    default:
+      return 'status-unknown';
+  }
+};
+
+// 获取用户状态文本
+const getUserStatusText = (condition) => {
+  switch (condition) {
+    case '空闲':
+    case '空闲中':
+    case 'active':
+      return '空闲';
+    case '忙碌':
+    case 'busy':
+      return '忙碌';
+    case '离线':
+    case 'offline':
+      return '离线';
+    default:
+      return '未知';
   }
 };
 
@@ -204,6 +243,7 @@ onMounted(() => {
                 <th>联系电话</th>
                 <th>职位</th>
                 <th>角色</th>
+                <th>状态</th>
                 <th>邮箱</th>
                 <th>操作</th>
               </tr>
@@ -215,6 +255,11 @@ onMounted(() => {
                 <td>{{ user.userPhone }}</td>
                 <td>{{ user.position }}</td>
                 <td>{{ user.role === 'admin' ? '管理员' : '普通用户' }}</td>
+                <td>
+                  <span class="status-badge" :class="getUserStatusClass(user.condition)">
+                    {{ getUserStatusText(user.condition) }}
+                  </span>
+                </td>
                 <td>{{ user.email || '未设置' }}</td>
                 <td class="actions">
                   <button class="tech-button small" @click="handleEdit(user)">修改</button>
@@ -257,6 +302,15 @@ onMounted(() => {
             <label>职位</label>
             <select v-model="formUser.position">
               <option v-for="pos in positions" :key="pos" :value="pos">{{ pos }}</option>
+            </select>
+          </div>
+          
+          <div class="form-group" v-if="editMode">
+            <label>状态</label>
+            <select v-model="formUser.condition">
+              <option value="空闲">空闲</option>
+              <option value="忙碌">忙碌</option>
+              <option value="离线">离线</option>
             </select>
           </div>
           
@@ -608,4 +662,38 @@ tr:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(33, 150, 243, 0.5);
 }
-</style>
+
+/* 状态徽章样式 */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  min-width: 50px;
+}
+
+.status-available {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-busy {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.status-offline {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.3);
+}
+
+.status-unknown {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}</style>

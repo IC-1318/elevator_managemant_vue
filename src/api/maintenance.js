@@ -23,6 +23,20 @@ export default {
   },
 
   /**
+   * 创建维护任务
+   * @param {Object} data - 维护任务对象
+   * @param {number} data.userId - 用户ID
+   * @param {string} data.mtDataId - 维护数据ID
+   * @param {string} data.systemName - 系统名称
+   * @param {string} data.status - 维护状态
+   * @param {string} [data.remark] - 备注信息
+   * @returns {Promise<Object>} 返回创建结果
+   */
+  createMaintenance(data) {
+    return axios.post(`${API_BASE_URL}/maintain-table/add-maintain`, data);
+  },
+
+  /**
    * 更新维护记录
    * @param {Object} data - 维护记录对象
    * @param {number} data.id - 记录ID
@@ -34,4 +48,4 @@ export default {
   updateMaintenance(data) {
     return axios.post(`${API_BASE_URL}/maintain-table/update-maintain`, data);
   }
-}; 
+};

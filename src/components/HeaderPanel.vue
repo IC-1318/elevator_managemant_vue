@@ -290,14 +290,14 @@ const goToAdminPage = () => {
     
     <div class="user-controls">
       <div class="control-button left-button" @click="handleLogout" title="退出登录">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
           <polyline points="16 17 21 12 16 7"></polyline>
           <line x1="21" y1="12" x2="9" y2="12"></line>
         </svg>
       </div>
       <div class="control-button right-button" @click="goToAdminPage" title="管理员页面">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           <path d="M12 11.1v-3.6" />
         </svg>
@@ -576,38 +576,40 @@ const goToAdminPage = () => {
 
 .left-button {
   position: absolute;
-  left: 20px;
+  left: 25px;
+  top: 20px;
 }
 
 .right-button {
   position: absolute;
-  right: 20px;
+  right: 25px;
+  top: 20px;
 }
 
 .control-button {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(33, 150, 243, 0.2);
-  border: 1px solid rgba(33, 150, 243, 0.4);
+  background: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.5);
   color: #4dabf5;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
+  box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
   z-index: 1000;
 }
 
 .control-button:hover {
-  background: rgba(33, 150, 243, 0.4);
+  background: rgba(33, 150, 243, 0.5);
   transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+  box-shadow: 0 5px 18px rgba(33, 150, 243, 0.6);
 }
 
 .control-button svg {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
 }
 </style>

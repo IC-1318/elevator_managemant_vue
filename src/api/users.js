@@ -9,10 +9,11 @@ const API_BASE_URL = config.API_BASE_URL;
 export default {
   /**
    * 获取所有用户列表
+   * @param {Object} [params] - 查询参数
    * @returns {Promise<Object>} 返回用户列表
    */
-  getUsers() {
-    return axios.get(`${API_BASE_URL}/users/get-user`);
+  getUsers(params = {}) {
+    return axios.get(`${API_BASE_URL}/users/get-user`, { params });
   },
 
   /**
@@ -48,5 +49,18 @@ export default {
    */
   deleteUser(id) {
     return axios.post(`${API_BASE_URL}/users/delete-user`, { id });
+  },
+
+  /**
+   * 更新用户状态
+   * @param {number|string} userId - 用户ID
+   * @param {string} condition - 用户状态（如：空闲、忙碌、离线等）
+   * @returns {Promise<Object>} 返回更新结果
+   */
+  updateUserStatus(userId, condition) {
+    return axios.post(`${API_BASE_URL}/users/update-user`, {
+      id: userId,
+      condition: condition
+    });
   }
-}; 
+};

@@ -16,7 +16,7 @@ export default {
    * @param {string|number} data.eData - 异常数据值
    * @param {string} [data.aiResult] - AI分析结果
    * @param {number} [data.aiCode] - AI分析结果代码(0表示警告，1表示故障)
-   * @returns {Promise<Object>} 返回添加结果
+   * @returns {Promise<Object>} 返回添加结果，包含mtDataId字段
    */
   addAbnormalData(data) {
     // 确保所有必填字段都有值
@@ -46,12 +46,28 @@ export default {
    * @param {number} params.current - 当前页码
    * @param {number} params.size - 每页数据条数
    * @param {number} [params.id] - 异常数据ID
+   * @param {number} [params.mtDataId] - 异常数据ID（用于任务分配）
    * @param {string} [params.systemName] - 系统名称
    * @param {string} [params.systemSqName] - 子系统名称
    * @returns {Promise<Object>} 返回查询结果
    */
   getAbnormalData(params) {
     return axios.get(`${API_BASE_URL}/data-etable/selectData`, { params });
+  },
+
+  /**
+   * 根据mtDataId获取单个异常数据
+   * @param {number} mtDataId - 异常数据ID
+   * @returns {Promise<Object>} 返回异常数据详情
+   */
+  getAbnormalDataById(mtDataId) {
+    return axios.get(`${API_BASE_URL}/data-etable/selectData`, {
+      params: {
+        current: 1,
+        size: 1,
+        mtDataId: mtDataId
+      }
+    });
   },
 
   /**
@@ -82,4 +98,4 @@ export default {
   getSimulatedAIResult() {
     // Implementation of getSimulatedAIResult method
   }
-}; 
+};

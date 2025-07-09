@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { maintenanceApi } from '../api';
+import { maintenanceApi, usersApi } from '../api';
 import { ElMessage } from 'element-plus';
 import TechGridBackground from '../components/TechGridBackground.vue';
 
@@ -20,6 +20,23 @@ const loading = ref(false);
 const totalItems = ref(0);
 const currentPage = ref(1);
 const pageSize = ref(10);
+const users = ref([]);
+
+const fetchUsers = async () => {
+  try {
+    const response = await usersApi.getUsers();
+    if (response.data.code === 200) {
+      users.value = response.data.data || [];
+    }
+  } catch (error) {
+    console.error('获取用户信息出错:', error);
+  }
+};
+
+const getUserName = (userId) => {
+  const user = users.value.find(u => u.id === userId);
+  return user ? user.userName : `用户ID: ${userId}`;
+};
 
 const fetchMaintainData = async () => {
   loading.value = true;
@@ -36,6 +53,8 @@ const fetchMaintainData = async () => {
     if (response.data.code === 200) {
       records.value = response.data.data.records;
       totalItems.value = response.data.data.total;
+      console.log('维护记录数据:', records.value);
+      console.log('用户数据:', users.value);
     } else {
       ElMessage.error('获取维护记录失败: ' + response.data.message);
     }
@@ -47,10 +66,7 @@ const fetchMaintainData = async () => {
   }
 };
 
-const viewDetails = (record) => {
-  console.log('查看详情:', record);
-  ElMessage.info('详情功能待实现');
-};
+
 
 const updateStatus = async (record, newStatus) => {
   try {
@@ -78,7 +94,8 @@ const handlePageChange = (page) => {
   fetchMaintainData();
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchUsers();
   fetchMaintainData();
 });
 </script>
@@ -120,13 +137,12 @@ onMounted(() => {
           </div>
           <div class="item-body">
             <div class="info-item"><strong>系统类型:</strong> {{ record.systemName }}</div>
-            <div class="info-item"><strong>维护人员ID:</strong> {{ record.userId }}</div>
+            <div class="info-item"><strong>维护人员:</strong> <span class="maintenance-personnel">{{ getUserName(record.userId) }}</span></div>
             <div class="info-item"><strong>备注:</strong> {{ record.remark || '无' }}</div>
           </div>
           <div class="item-footer">
             <div class="item-time">{{ record.mtTime }}</div>
             <div class="item-actions">
-              <el-button size="small" @click="viewDetails(record)">详情</el-button>
               <el-button size="small" type="primary" @click="updateStatus(record, '已维护')"
                 v-if="record.status !== '已维护'">
                 标记完成
@@ -141,6 +157,8 @@ onMounted(() => {
           :current-page.sync="currentPage" :page-size="pageSize" @current-change="handlePageChange" />
       </div>
     </div>
+
+
   </div>
 </template>
 
@@ -229,6 +247,17 @@ onMounted(() => {
 }
 .info-item strong { color: #fff; }
 
+/* 维护人员名字突出显示 */
+.maintenance-personnel {
+  color: #4dabf5;
+  font-weight: bold;
+  background: rgba(77, 171, 245, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(77, 171, 245, 0.3);
+  display: inline-block;
+}
+
 .item-footer {
   display: flex;
   justify-content: space-between;
@@ -250,4 +279,6 @@ onMounted(() => {
 :deep(.el-pagination.is-background .el-pager li:not(.disabled)) { background-color: rgba(13, 31, 61, 0.5); border: 1px solid rgba(33, 150, 243, 0.4); }
 :deep(.el-pagination.is-background .el-pager li:not(.disabled).active) { background-color: #2196f3; }
 :deep(.el-pagination.is-background .btn-next), :deep(.el-pagination.is-background .btn-prev) { background-color: rgba(13, 31, 61, 0.5); border: 1px solid rgba(33, 150, 243, 0.4); }
+
+
 </style>

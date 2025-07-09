@@ -119,6 +119,23 @@ const handleCenterRepairComplete = () => {
   resumeElevator();
   showCenterNotification.value = false;
 };
+
+// 处理维修分配回调
+const handleMaintenanceAssigned = (assignmentData) => {
+  if (assignmentData.success) {
+    console.log('维修任务分配成功:', assignmentData);
+    // 可以在这里添加成功提示或其他逻辑
+  } else {
+    console.error('维修任务分配失败:', assignmentData.error);
+    // 可以在这里添加错误处理逻辑
+  }
+};
+
+// 处理警告忽略回调
+const handleWarningIgnored = (warningData) => {
+  console.log('警告已忽略:', warningData);
+  // 可以在这里添加忽略警告的处理逻辑
+};
 </script>
 
 <template>
@@ -165,6 +182,8 @@ const handleCenterRepairComplete = () => {
       @close="handleCenterNotificationClose"
       @view-details="handleCenterSystemDetails"
       @repair-complete="handleCenterRepairComplete"
+      @maintenance-assigned="handleMaintenanceAssigned"
+      @warning-ignored="handleWarningIgnored"
     />
   </div>
 </template>
