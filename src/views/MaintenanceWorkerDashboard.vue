@@ -43,14 +43,14 @@ const completeTask = async (task) => {
   try {
     const updateData = {
       id: task.id,
-      userId: task.userId || userInfo.value?.id,
+      user_id: task.userId || userInfo.value?.id,
       status: '已维护',
       remark: task.remark || '维修完成'
     };
     
     const response = await maintenanceApi.updateMaintenance(updateData);
     if (response.data.code === 200) {
-      ElMessage.success('任务已标记为完成');
+      ElMessage.success('任务已标记为已维护');
       fetchTasks(); // 重新获取任务列表
     } else {
       ElMessage.error('更新任务状态失败: ' + response.data.message);

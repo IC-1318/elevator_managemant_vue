@@ -45,7 +45,24 @@ const fetchSystemData = () => {
     manufacturer: '制造商：西子电梯',
     installDate: '安装日期：2023-01-15',
     maintenanceCycle: '维护周期：3个月',
-    parameters: [
+    parameters: {
+      tractionMachine: {
+        motorTemperature: { value: 65.5, unit: '°C', normal: '≤80°C', critical: '>95°C' },
+        bearingTemperature: { value: 75.2, unit: '°C', normal: '≤95°C', critical: '>95°C' },
+        vibrationSpeed: { value: 1.8, unit: 'mm/s', normal: '≤2.8 mm/s', critical: '>4.5 mm/s' },
+        current: { value: 18.5, unit: 'A', normal: '额定值±10%', critical: '>15%波动' }
+      },
+      steelRopes: {
+        wear: { value: 5.2, unit: '%', normal: '≤10%', critical: '>10%' },
+        brokenWires: { value: 2, unit: '根/股', normal: '≤5根/股', critical: '>8根/股' }
+      },
+      brakes: {
+        clearance: { value: 0.8, unit: 'mm', normal: '0.5-1.0 mm', critical: '>1.5 mm' },
+        brakingTorque: { value: 320, unit: 'N·m', normal: '≥1.5倍额定载荷', critical: '<1.5倍额定载荷' }
+      }
+    },
+    // 保持原有的数组格式用于显示
+    parametersList: [
       // 曳引机
       { name: '电机温度', value: 65.5, unit: '°C', normal: '≤80°C', critical: '>95°C', group: '曳引机' },
       { name: '轴承温度', value: 75.2, unit: '°C', normal: '≤95°C', critical: '>95°C', group: '曳引机' },
@@ -88,7 +105,7 @@ const createGaugeCharts = () => {
   gaugeCharts.value = [];
   
   // 获取曳引机参数
-  const tractionParams = systemData.value.parameters.filter(p => p.group === '曳引机');
+  const tractionParams = systemData.value.parametersList.filter(p => p.group === '曳引机');
   
   // 获取所有仪表盘DOM元素
   const gaugeEls = document.querySelectorAll('.param-gauge');
@@ -243,7 +260,7 @@ const updateGaugeCharts = () => {
   if (gaugeCharts.value.length === 0) return;
   
   // 获取曳引机参数
-  const tractionParams = systemData.value.parameters.filter(p => p.group === '曳引机');
+  const tractionParams = systemData.value.parametersList.filter(p => p.group === '曳引机');
   
   // 更新每个仪表盘的数据
   tractionParams.forEach((param, index) => {
@@ -269,33 +286,51 @@ const updateGaugeCharts = () => {
 const updateSystemData = () => {
   if (!systemData.value) return;
   
-  // 更新参数值
-  systemData.value.parameters.forEach(param => {
+  // 生成新的随机值
+  const newMotorTemp = (60 + Math.random() * 15).toFixed(1) * 1;
+  const newBearingTemp = (70 + Math.random() * 20).toFixed(1) * 1;
+  const newVibration = (1.5 + Math.random() * 1.5).toFixed(1) * 1;
+  const newCurrent = (18.5 + Math.random() * 4 - 2).toFixed(1) * 1;
+  const newRopeWear = (5 + Math.random() * 7).toFixed(1) * 1;
+  const newBrokenWires = Math.floor(1 + Math.random() * 8);
+  const newBrakeClearance = (0.5 + Math.random() * 1.0).toFixed(1) * 1;
+  const newBrakeTorque = Math.floor(300 + Math.random() * 60);
+  
+  // 更新结构化参数
+  systemData.value.parameters.tractionMachine.motorTemperature.value = newMotorTemp;
+  systemData.value.parameters.tractionMachine.bearingTemperature.value = newBearingTemp;
+  systemData.value.parameters.tractionMachine.vibrationSpeed.value = newVibration;
+  systemData.value.parameters.tractionMachine.current.value = newCurrent;
+  systemData.value.parameters.steelRopes.wear.value = newRopeWear;
+  systemData.value.parameters.steelRopes.brokenWires.value = newBrokenWires;
+  systemData.value.parameters.brakes.clearance.value = newBrakeClearance;
+  systemData.value.parameters.brakes.brakingTorque.value = newBrakeTorque;
+  
+  // 更新参数列表（用于显示）
+  systemData.value.parametersList.forEach(param => {
     if (param.name === '电机温度') {
-      param.value = (60 + Math.random() * 15).toFixed(1) * 1;
+      param.value = newMotorTemp;
     } else if (param.name === '轴承温度') {
-      param.value = (70 + Math.random() * 20).toFixed(1) * 1;
+      param.value = newBearingTemp;
     } else if (param.name === '振动速度') {
-      param.value = (1.5 + Math.random() * 1.5).toFixed(1) * 1;
+      param.value = newVibration;
     } else if (param.name === '电流') {
-      const baseValue = 18.5;
-      const variation = Math.random() * 4 - 2; // -2到2的变化
-      param.value = (baseValue + variation).toFixed(1) * 1;
+      param.value = newCurrent;
     } else if (param.name === '钢丝绳磨损') {
-      param.value = (5 + Math.random() * 7).toFixed(1) * 1;
+      param.value = newRopeWear;
     } else if (param.name === '断丝数') {
-      param.value = Math.floor(1 + Math.random() * 8);
+      param.value = newBrokenWires;
     } else if (param.name === '制动间隙') {
-      param.value = (0.5 + Math.random() * 1.0).toFixed(1) * 1;
+      param.value = newBrakeClearance;
     } else if (param.name === '制动力矩') {
-      param.value = Math.floor(300 + Math.random() * 60);
+      param.value = newBrakeTorque;
     }
   });
   
   // 更新历史数据，移除最早的数据点，添加新的数据点
-  const newTemp = systemData.value.parameters.find(p => p.name === '电机温度').value;
-  const newVib = systemData.value.parameters.find(p => p.name === '振动速度').value;
-  const newCurrent = systemData.value.parameters.find(p => p.name === '电流').value;
+  const newTemp = systemData.value.parameters.tractionMachine.motorTemperature.value;
+  const newVib = systemData.value.parameters.tractionMachine.vibrationSpeed.value;
+  const newCurrentHist = systemData.value.parameters.tractionMachine.current.value;
   
   systemData.value.historicalData.temperature.shift();
   systemData.value.historicalData.temperature.push(newTemp);
@@ -304,7 +339,7 @@ const updateSystemData = () => {
   systemData.value.historicalData.vibration.push(newVib);
   
   systemData.value.historicalData.current.shift();
-  systemData.value.historicalData.current.push(newCurrent);
+  systemData.value.historicalData.current.push(newCurrentHist);
   
   // 更新时间标签
   const today = new Date();
@@ -324,9 +359,9 @@ const updateSystemData = () => {
 const getKeyParameters = () => {
   if (!systemData.value) return [];
   
-  const motorTemp = systemData.value.parameters.find(p => p.name === '电机温度').value;
-  const vibration = systemData.value.parameters.find(p => p.name === '振动速度').value;
-  const ropeWear = systemData.value.parameters.find(p => p.name === '钢丝绳磨损').value;
+  const motorTemp = systemData.value.parameters.tractionMachine.motorTemperature.value;
+  const vibration = systemData.value.parameters.tractionMachine.vibrationSpeed.value;
+  const ropeWear = systemData.value.parameters.steelRopes.wear.value;
   
   return [
     {
@@ -536,7 +571,10 @@ onBeforeUnmount(() => {
     <div v-if="systemData" class="system-content">
       <!-- 悬浮标题 -->
       <div class="floating-header">
-        <h1 class="system-title">{{ systemData.name }}</h1>
+        <div class="panel-header">
+          <h1 class="system-title tech-text">{{ systemData.name }}</h1>
+          <div class="tech-decoration"></div>
+        </div>
       </div>
 
       <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
@@ -546,7 +584,7 @@ onBeforeUnmount(() => {
           <!-- 曳引机参数 -->
           <div class="traction-parameters panel">
             <div class="parameter-grid">
-              <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '曳引机')" 
+              <div v-for="(param, index) in systemData.parametersList.filter(p => p.group === '曳引机')" 
                    :key="index" 
                    class="parameter-item">
                 <div class="param-gauge"></div>
@@ -560,7 +598,7 @@ onBeforeUnmount(() => {
               <ParameterChart 
                 chartType="bar"
                 paramGroup="曳引钢丝绳" 
-                :parameters="systemData.parameters.filter(p => p.group === '曳引钢丝绳')" 
+                :parameters="systemData.parametersList.filter(p => p.group === '曳引钢丝绳')" 
               />
             </div>
           </div>
@@ -569,7 +607,12 @@ onBeforeUnmount(() => {
         <!-- 中间3D模型列 -->
         <div class="center-column">
           <div class="model-3d-container">
-            <TractionModelViewer />
+            <TractionModelViewer 
+          :motorSpeed="systemData.parameters.tractionMachine.current.value"
+          :motorTemperature="systemData.parameters.tractionMachine.motorTemperature.value"
+          :brakeStatus="systemData.parameters.brakes.brakingTorque.value > 50"
+          :vibration="systemData.parameters.tractionMachine.vibrationSpeed.value"
+        />
           </div>
         </div>
 
@@ -646,13 +689,62 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: none;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 20px;
+  border-bottom: none;
+  background: transparent;
+  border-radius: 8px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+}
+
 .system-title {
   margin: 0;
-  padding: 8px 20px;
   font-size: 1.6rem;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #4dabf5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(77, 171, 245, 0.5);
   display: inline-block;
+}
+
+.tech-text {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.tech-decoration {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tech-decoration::before,
+.tech-decoration::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  width: 50px;
+  background: linear-gradient(90deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
+  border-radius: 1px;
+}
+
+.tech-decoration::before {
+  left: -70px;
+}
+
+.tech-decoration::after {
+  right: -70px;
+  background: linear-gradient(270deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
 }
 
 /* 三列布局 - 调整列宽比例 */
@@ -894,4 +986,4 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

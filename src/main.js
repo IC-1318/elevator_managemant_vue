@@ -60,7 +60,7 @@ echarts.use([
 
 // 配置axios默认设置
 axios.defaults.withCredentials = true; // 支持cookie
-axios.defaults.timeout = 10000; // 设置请求超时时间
+axios.defaults.timeout = 60000; // 设置请求超时时间为1分钟
 
 const app = createApp(App)
 app.use(router)

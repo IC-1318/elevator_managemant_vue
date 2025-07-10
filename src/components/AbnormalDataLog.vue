@@ -1,47 +1,143 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { abnormalDataApi } from '../api'; // 导入API
+import maintenanceApi from '@/api/maintenance' // 导入维护API
+import AuthService from '@/services/authService'; // 导入认证服务
+import { ElMessage } from 'element-plus'; // 导入消息提示
 
 // 异常日志数据
 const abnormalLogs = ref([]);
 const loading = ref(true);
+const processingIds = ref([]); // 正在处理的记录ID列表
+let refreshTimer = null;
 
 // 从API获取数据
 const fetchData = async () => {
   try {
-    // 我们只获取最新的几条记录，比如最新的10条
-    const response = await abnormalDataApi.getAbnormalData({ current: 1, size: 20 });
+    // 我们只获取最新的几条记录，比如最新的50条
+    const response = await abnormalDataApi.getAbnormalData({ current: 1, size: 50 });
     if (response.data.code === 200) {
-      abnormalLogs.value = response.data.data.records.map(log => {
-        // 根据 'systemName' 判断严重等级
-        let severity = 'warning'; // 默认为警告
-        if (['安全系统', '控制系统'].includes(log.systemName)) {
-            severity = 'critical';
+      // 获取所有维护记录以检查状态
+      const maintenanceResponse = await maintenanceApi.getMaintenance({ current: 1, size: 1000 });
+      const maintenanceRecords = maintenanceResponse.data.code === 200 ? maintenanceResponse.data.data.records : [];
+      
+      console.log('异常数据记录:', response.data.data.records);
+      console.log('维护记录:', maintenanceRecords);
+      
+      // 处理后端返回的字段名映射（下划线转驼峰），与MaintenanceLog.vue保持一致
+      maintenanceRecords.forEach(record => {
+        // 映射字段名：system_name -> systemName, user_id -> userId, mt_data_id -> mtDataId
+        if (record.system_name) {
+          record.systemName = record.system_name;
         }
+        if (record.user_id) {
+          record.userId = record.user_id;
+        }
+        if (record.mt_data_id) {
+          record.mtDataId = record.mt_data_id;
+        }
+        if (record.mt_time) {
+          record.mtTime = record.mt_time;
+        }
+        // 确保status字段存在
+        if (!record.status) {
+          record.status = '待维护';
+        }
+      });
+      
+      abnormalLogs.value = response.data.data.records.map(log => {
+        // 根据 aiCode 判断严重等级
+        let severity = log.aiCode === 1 ? 'critical' : 'warning';
+        
+        // 检查是否有对应的维护记录且状态为已维护
+        // 尝试多种匹配方式：mtDataId、mt_data_id或直接用ID匹配
+        const maintenanceRecord = maintenanceRecords.find(record => {
+          const recordMtDataId = record.mtDataId || record.mt_data_id;
+          const logDataId = log.mtDataId || log.id;
+          return (recordMtDataId === logDataId || record.id === logDataId) && record.status === '已维护';
+        });
+        
+        // 详细调试信息
+         console.log(`异常数据ID: ${log.id}, mtDataId: ${log.mtDataId}, 对应维护记录:`, maintenanceRecord);
+         if (maintenanceRecords.length > 0) {
+           console.log('第一条维护记录的所有字段:', Object.keys(maintenanceRecords[0]));
+           console.log('第一条维护记录详细信息:', maintenanceRecords[0]);
+         }
+        
         return {
           id: log.id,
+          mtDataId: log.mtDataId || log.id,
           timestamp: log.createTime,
           systemName: log.systemName,
+          systemSqName: log.systemSqName,
+          eName: log.eName,
+          eData: log.eData,
+          aiResult: log.aiResult,
+          aiCode: log.aiCode,
           severity: severity,
           message: log.systemSqName, // 使用子系统名称作为消息
-          parameters: `数据值: ${log.eData}`, // 显示具体数据
-          status: log.status || '未处理'
+          parameters: `异常值: ${log.eData}`, // 显示具体数据
+          status: maintenanceRecord ? '已处理' : '未处理' // 基于维护记录状态判断
         };
       });
     }
   } catch (error) {
     console.error("获取异常数据失败:", error);
+    // 使用模拟数据作为后备
+    abnormalLogs.value = generateMockData();
   } finally {
     loading.value = false;
   }
 };
 
+// 生成模拟数据
+const generateMockData = () => {
+  return [
+    {
+      id: 1,
+      mtDataId: 1,
+      systemName: '曳引系统',
+      systemSqName: '曳引机',
+      eName: '温度异常',
+      eData: '95°C',
+      aiResult: 'AI检测到曳引机温度过高，建议立即检查散热系统',
+      aiCode: 1,
+      severity: 'critical',
+      timestamp: new Date().toISOString(),
+      message: '曳引机',
+      parameters: '数据值: 95°C',
+      status: '未处理'
+    },
+    {
+      id: 2,
+      mtDataId: 2,
+      systemName: '门系统',
+      systemSqName: '门机',
+      eName: '开关门时间',
+      eData: '4.5s',
+      aiResult: 'AI检测到门机开关时间略长，建议检查门机润滑情况',
+      aiCode: 0,
+      severity: 'warning',
+      timestamp: new Date(Date.now() - 300000).toISOString(),
+      message: '门机',
+      parameters: '数据值: 4.5s',
+      status: '未处理'
+    }
+  ];
+};
 
 // 组件挂载时获取初始数据，并设置定时器刷新
 onMounted(() => {
   fetchData();
   // 每30秒刷新一次数据
-  setInterval(fetchData, 30000);
+  refreshTimer = setInterval(fetchData, 30000);
+});
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
 });
 
 // 计算严重故障和警告的数量
@@ -53,49 +149,205 @@ const warningCount = computed(() => {
   return abnormalLogs.value.filter(log => log.severity === 'warning' && log.status === '未处理').length;
 });
 
-
-// 标记为已处理 - 注意：这里只是前端修改状态，需要API支持才能持久化
-const markAsProcessed = (logId) => {
-  const log = abnormalLogs.value.find(log => log.id === logId);
-  if (log) {
-    log.status = '已处理';
-    // TODO: 调用API更新后端状态
-    // e.g. await abnormalDataApi.updateLogStatus(logId, '已处理');
+// 标记为已处理 - 与数据库同步
+const markAsProcessed = async (logId) => {
+  // 防止重复点击
+  if (processingIds.value.includes(logId)) {
+    return;
   }
+  
+  const log = abnormalLogs.value.find(log => log.id === logId);
+  if (!log) {
+    return;
+  }
+  
+  try {
+    // 添加到处理中列表
+    processingIds.value.push(logId);
+    
+    // 获取当前用户信息
+    const currentUser = AuthService.getCurrentUser();
+    if (!currentUser || !currentUser.id) {
+      ElMessage.error('无法获取当前用户信息，请重新登录');
+      return;
+    }
+    
+    // 先检查是否已存在该异常数据的维护记录
+    const existingRecords = await maintenanceApi.getMaintenance({
+      mtDataId: log.mtDataId || log.id,
+      current: 1,
+      size: 10
+    });
+    
+    let response;
+    if (existingRecords.data.code === 200 && existingRecords.data.data.records.length > 0) {
+      // 如果已存在记录，更新状态
+      const existingRecord = existingRecords.data.data.records[0];
+      const updateData = {
+        id: existingRecord.id,
+        user_id: currentUser.id,
+        status: '已维护'
+      };
+      response = await maintenanceApi.updateMaintenance(updateData);
+    } else {
+      // 如果不存在记录，创建新的维护记录
+      const maintenanceData = {
+        user_id: currentUser.id,
+        mtDataId: log.mtDataId || log.id, // 异常数据ID
+        systemName: log.systemName,
+        status: '已维护', // 直接标记为已维护
+        remark: `异常处理完成: ${log.eName} - ${log.eData}`
+      };
+      response = await maintenanceApi.createMaintenance(maintenanceData);
+    }
+    
+    if (response.data && response.data.code === 200) {
+      // 更新本地状态
+      log.status = '已处理';
+      
+      // 显示成功消息
+      ElMessage.success('异常记录已标记为已维护');
+      
+      console.log('异常记录已标记为已维护:', log);
+    } else {
+      throw new Error(response.data?.message || '标记为已维护失败');
+    }
+  } catch (error) {
+    console.error('标记为已维护失败:', error);
+    ElMessage.error(`标记为已维护失败: ${error.message}`);
+  } finally {
+    // 从处理中列表移除
+    const index = processingIds.value.indexOf(logId);
+    if (index > -1) {
+      processingIds.value.splice(index, 1);
+    }
+  }
+};
+
+// 格式化时间
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// 获取严重等级文本
+const getSeverityText = (aiCode) => {
+  return aiCode === 1 ? '严重故障' : '警告';
 };
 </script>
 
 <template>
   <div class="abnormal-data-log">
     <div class="log-header">
-      <div class="log-summary">
-        <div class="summary-item critical">
-          <div class="summary-count">{{ criticalCount }}</div>
-          <div class="summary-label">严重故障</div>
+      <!-- 移除重复的标题 -->
+      <div class="summary-stats">
+        <div class="stat-item critical">
+          <span class="count">{{ criticalCount }}</span>
+          <span class="label">严重故障</span>
         </div>
-        <div class="summary-item warning">
-          <div class="summary-count">{{ warningCount }}</div>
-          <div class="summary-label">警告</div>
+        <div class="stat-item warning">
+          <span class="count">{{ warningCount }}</span>
+          <span class="label">警告</span>
         </div>
       </div>
     </div>
     
-    <div v-if="loading" class="loading-indicator">数据加载中...</div>
-    <div v-else-if="abnormalLogs.length === 0" class="no-data">暂无异常记录</div>
-    <div v-else class="log-content">
-      <div v-for="log in abnormalLogs" :key="log.id" class="log-item" :class="[log.severity, {'processed': log.status === '已处理'}]">
-        <div class="log-time">{{ log.timestamp }}</div>
-        <div class="log-severity-badge" :class="log.severity">
-          {{ log.severity === 'critical' ? '严重' : '警告' }}
+    <div class="log-content">
+      <div v-if="loading" class="loading-state">
+        <div class="loading-spinner">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+              <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+            </circle>
+          </svg>
         </div>
-        <div class="log-system">
-          <span class="system-name">{{ log.systemName }}</span>
+        <p>正在获取异常数据...</p>
+      </div>
+      
+      <div v-else-if="abnormalLogs.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-        <div class="log-message">{{ log.message }}</div>
-        <div class="log-params">{{ log.parameters }}</div>
-        <div class="log-actions">
-          <button v-if="log.status === '未处理'" class="process-btn" @click="markAsProcessed(log.id)">标记为已处理</button>
-          <span v-else class="processed-label">已处理</span>
+        <p>系统运行正常，暂无异常数据</p>
+      </div>
+      
+      <div v-else class="log-list">
+        <div 
+          v-for="log in abnormalLogs" 
+          :key="log.id"
+          class="log-item ai-card"
+          :class="[log.severity, {'processed': log.status === '已处理'}]"
+        >
+          <div class="card-glow"></div>
+          <div class="card-header">
+            <div class="severity-indicator" :class="log.severity">
+              <div class="severity-icon" :class="log.severity">
+                <svg v-if="log.severity === 'critical'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/>
+                  <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="12" cy="17" r="1" fill="currentColor"/>
+                </svg>
+              </div>
+              <span class="severity-text">{{ getSeverityText(log.aiCode) }}</span>
+            </div>
+            <div class="timestamp">{{ formatTime(log.timestamp) }}</div>
+          </div>
+          
+          <div class="card-content">
+            <!-- 第一排：系统信息和故障值 -->
+            <div class="first-row">
+              <div class="system-info">
+                <span class="system-name">{{ log.systemName }}</span>
+                <span class="component-name" v-if="log.systemSqName">{{ log.systemSqName }}</span>
+              </div>
+              <div class="error-value">{{ log.parameters }}</div>
+            </div>
+            
+            <!-- 第二排：操作按钮 -->
+            <div class="second-row">
+              <div class="status-indicator" v-if="log.status === '已处理'">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                  <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>已处理</span>
+              </div>
+              
+              <div class="action-buttons" v-if="log.status === '未处理'">
+                <button 
+                  class="action-btn process-btn"
+                  @click="markAsProcessed(log.id)"
+                  :disabled="processingIds.includes(log.id)"
+                >
+                  <svg v-if="processingIds.includes(log.id)" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+                      <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                      <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                    </circle>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  {{ processingIds.includes(log.id) ? '处理中...' : '标记为已维护' }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -104,206 +356,451 @@ const markAsProcessed = (logId) => {
 
 <style scoped>
 .abnormal-data-log {
+  background: rgba(16, 20, 28, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  color: #fff;
   height: 100%;
-  width: 100%;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(25, 118, 210, 0.3);
+  border: 1px solid rgba(25, 118, 210, 0.3);
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.abnormal-data-log::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 50%),
+    repeating-linear-gradient(rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0) 1px, rgba(255, 255, 255, 0) 4px);
+  pointer-events: none;
+  border-radius: 16px;
+  z-index: -1;
 }
 
 .log-header {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(64, 128, 255, 0.2);
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(25, 118, 210, 0.2);
+  position: relative;
 }
 
-.log-summary {
+.log-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, 
+    rgba(25, 118, 210, 0), 
+    rgba(25, 118, 210, 0.3), 
+    rgba(25, 118, 210, 0));
+}
+
+/* 移除了重复的标题相关样式 */
+
+.summary-stats {
   display: flex;
-  gap: 15px;
+  gap: 16px;
 }
 
-.summary-item {
+.stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  padding: 8px 15px;
-  min-width: 70px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(25, 118, 210, 0.15);
+  min-width: 60px;
+  border: 1px solid rgba(25, 118, 210, 0.3);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
 }
 
-.summary-item.critical {
-  background: rgba(231, 76, 60, 0.1);
-  border: 1px solid rgba(231, 76, 60, 0.3);
+.stat-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  border-radius: 12px;
+  z-index: -1;
 }
 
-.summary-item.warning {
-  background: rgba(241, 196, 15, 0.1);
-  border: 1px solid rgba(241, 196, 15, 0.3);
+.stat-item.critical {
+  border-color: rgba(244, 67, 54, 0.4);
+  background: rgba(244, 67, 54, 0.2);
 }
 
-.summary-count {
-  font-size: 1.6rem;
-  font-weight: 700;
+.stat-item.warning {
+  border-color: rgba(255, 193, 7, 0.4);
+  background: rgba(255, 193, 7, 0.2);
 }
 
-.critical .summary-count {
-  color: #e74c3c;
+.count {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 0 8px currentColor;
 }
 
-.warning .summary-count {
-  color: #f1c40f;
+.stat-item.critical .count {
+  color: #f44336;
 }
 
-.summary-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
+.stat-item.warning .count {
+  color: #ffc107;
 }
 
-.loading-indicator, .no-data {
-  text-align: center;
-  padding: 20px;
-  color: rgba(255, 255, 255, 0.7);
-  font-style: italic;
+.label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  position: relative;
+  z-index: 1;
 }
 
 .log-content {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-right: 5px;
+  padding-right: 8px;
+  max-height: 450px;
 }
 
-.log-item {
-  background: rgba(7, 19, 39, 0.3);
-  border-radius: 8px;
-  padding: 12px;
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 20px;
+}
+
+.loading-spinner svg {
+  width: 100%;
+  height: 100%;
+  color: #64b5f6;
+}
+
+.loading-state p {
+  font-size: 1.1rem;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  opacity: 0.6;
+}
+
+.empty-icon svg {
+  width: 100%;
+  height: 100%;
+  color: #66bb6a;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.log-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.log-item.ai-card {
+  background: rgba(25, 118, 210, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(25, 118, 210, 0.3);
   position: relative;
+  overflow: hidden;
   transition: all 0.3s ease;
-  animation: fadeIn 0.5s ease;
+  backdrop-filter: blur(5px);
+  margin-bottom: 0;
 }
 
-.log-item:hover {
-  background: rgba(7, 19, 39, 0.5);
+.log-item.ai-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  border-radius: 12px;
+  z-index: -1;
+}
+
+.card-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  border-radius: 12px;
+  z-index: -1;
+}
+
+.log-item.ai-card:hover {
   transform: translateY(-2px);
-}
-
-.log-item.critical {
-  border-left: 4px solid #e74c3c;
-}
-
-.log-item.warning {
-  border-left: 4px solid #f1c40f;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 20px rgba(25, 118, 210, 0.4);
+  background: rgba(25, 118, 210, 0.15);
 }
 
 .log-item.processed {
   opacity: 0.6;
+  border-color: rgba(25, 118, 210, 0.2);
+  background: rgba(25, 118, 210, 0.05);
 }
 
-.log-time {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.log-severity-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  align-self: flex-start;
-}
-
-.log-severity-badge.critical {
-  background: #e74c3c;
-}
-
-.log-severity-badge.warning {
-  background: #f1c40f;
-}
-
-.log-system {
+.severity-indicator {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+}
+
+.severity-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(25, 118, 210, 0.2);
+  border: 1px solid rgba(25, 118, 210, 0.4);
+}
+
+.severity-icon svg {
+  width: 14px;
+  height: 14px;
+  color: #64b5f6;
+}
+
+.severity-icon.critical {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.severity-icon.critical svg {
+  color: #f44336;
+}
+
+.severity-icon.warning {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.4);
+}
+
+.severity-icon.warning svg {
+  color: #ffc107;
+}
+
+.severity-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #64b5f6;
+}
+
+.severity-indicator.critical .severity-text {
+  color: #f44336;
+}
+
+.severity-indicator.warning .severity-text {
+  color: #ffc107;
+}
+
+.timestamp {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Courier New', monospace;
+}
+
+.card-content {
+  padding: 12px 16px;
+}
+
+.first-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.system-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .system-name {
-  font-weight: 600;
+  font-weight: bold;
+  color: #64b5f6;
   font-size: 1.1rem;
-  color: #fff;
+  text-shadow: 0 0 5px rgba(100, 181, 246, 0.3);
 }
 
-.log-message {
-  font-size: 0.95rem;
+.component-name {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.error-value {
   color: rgba(255, 255, 255, 0.9);
-}
-
-.log-params {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(0, 0, 0, 0.2);
-  padding: 5px 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  background: rgba(255, 193, 7, 0.2);
+  padding: 4px 8px;
   border-radius: 4px;
+  border: 1px solid rgba(255, 193, 7, 0.3);
 }
 
-.log-actions {
+.second-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
-  text-align: right;
+  align-items: center;
+}
+
+/* 移除了不再使用的ai-analysis和card-footer样式 */
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64b5f6;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.status-indicator svg {
+  width: 18px;
+  height: 18px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.action-btn:hover::before {
+  left: 100%;
 }
 
 .process-btn {
-  background: rgba(39, 174, 96, 0.2);
-  border: 1px solid #27ae60;
-  color: #2ecc71;
-  padding: 5px 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  background: rgba(25, 118, 210, 0.3);
+  color: #64b5f6;
+  border: 1px solid rgba(25, 118, 210, 0.4);
+  box-shadow: 0 0 5px rgba(100, 181, 246, 0.3);
 }
 
-.process-btn:hover {
-  background: #27ae60;
-  color: #fff;
+.process-btn:hover:not(:disabled) {
+  background: rgba(25, 118, 210, 0.4);
+  box-shadow: 0 0 8px rgba(100, 181, 246, 0.5);
 }
 
-.processed-label {
-  font-size: 0.9rem;
-  color: #27ae60;
-  font-style: italic;
+.process-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.processed {
-  border-left-color: #27ae60; /* Processed items get a green border */
+.action-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
-.processed .log-message,
-.processed .log-params {
-  color: rgba(255, 255, 255, 0.5);
-  text-decoration: line-through;
+/* 滚动条样式 */
+.log-content::-webkit-scrollbar {
+  width: 6px;
 }
 
-@keyframes fadeIn {
+.log-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.log-content::-webkit-scrollbar-thumb {
+  background: rgba(25, 118, 210, 0.4);
+  border-radius: 3px;
+}
+
+.log-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(25, 118, 210, 0.6);
+}
+
+/* 动画效果 */
+@keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -311,42 +808,15 @@ const markAsProcessed = (logId) => {
   }
 }
 
-/* 滚动条样式 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.log-item.ai-card {
+  animation: slideInUp 0.4s ease-out;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
+.log-item.ai-card:nth-child(even) {
+  animation-delay: 0.1s;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(64, 128, 255, 0.3);
-  border-radius: 3px;
+.log-item.ai-card:nth-child(odd) {
+  animation-delay: 0.2s;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(64, 128, 255, 0.5);
-}
-
-/* Scrollbar styles for log-content */
-.log-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.log-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.log-content::-webkit-scrollbar-thumb {
-  background: rgba(64, 128, 255, 0.4);
-  border-radius: 3px;
-}
-
-.log-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(64, 128, 255, 0.6);
-}
-</style> 
+</style>

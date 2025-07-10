@@ -195,8 +195,8 @@ const goToAdminPage = () => {
     
     <div class="header-panel">
       <div class="system-title-container">
-        <h1 class="system-title">电梯数字孪生驾驶舱</h1>
-        <div class="subtitle">Elevator Digital Twin Cockpit</div>
+        <h1 class="system-title">云智梯驾驶舱</h1>
+        <div class="subtitle">CloudSmart Elevator Cockpit</div>
         <div class="datetime-display">
           <div class="time-display tech-text">{{ currentTime }}</div>
         </div>

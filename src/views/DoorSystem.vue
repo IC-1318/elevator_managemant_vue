@@ -21,6 +21,75 @@ let dataUpdateInterval = null;
 // 存储所有仪表盘图表实例
 const gaugeCharts = ref([]);
 
+// 门系统模拟数据
+const doorSimulationData = ref({
+  doorStatus: 'closed', // 'opening', 'open', 'closing', 'closed'
+  openPercentage: 0,
+  contactResistance: 0.3,
+  motorCurrent: 2.4,
+  openingTime: 2.5,
+  systemParams: {
+    temperature: 25,
+    vibration: 0.2,
+    pressure: 1.0
+  }
+});
+
+// 门状态循环模拟
+let doorSimulationInterval = null;
+const startDoorSimulation = () => {
+  let cycle = 0;
+  const states = ['closed', 'opening', 'open', 'closing'];
+  const durations = [3000, 2500, 3000, 2500]; // 每个状态持续时间(ms)
+  
+  doorSimulationInterval = setInterval(() => {
+    const currentState = states[cycle % states.length];
+    doorSimulationData.value.doorStatus = currentState;
+    
+    // 根据状态更新开门百分比
+    if (currentState === 'opening') {
+      // 开门过程中逐渐增加百分比
+      let progress = 0;
+      const openingInterval = setInterval(() => {
+        progress += 4; // 每100ms增加4%
+        doorSimulationData.value.openPercentage = Math.min(progress, 100);
+        if (progress >= 100) {
+          clearInterval(openingInterval);
+        }
+      }, 100);
+    } else if (currentState === 'closing') {
+      // 关门过程中逐渐减少百分比
+      let progress = 100;
+      const closingInterval = setInterval(() => {
+        progress -= 4; // 每100ms减少4%
+        doorSimulationData.value.openPercentage = Math.max(progress, 0);
+        if (progress <= 0) {
+          clearInterval(closingInterval);
+        }
+      }, 100);
+    } else if (currentState === 'open') {
+      doorSimulationData.value.openPercentage = 100;
+    } else if (currentState === 'closed') {
+      doorSimulationData.value.openPercentage = 0;
+    }
+    
+    // 模拟参数变化
+    doorSimulationData.value.contactResistance = 0.25 + Math.random() * 0.1;
+    doorSimulationData.value.motorCurrent = 2.2 + Math.random() * 0.4;
+    doorSimulationData.value.systemParams.temperature = 23 + Math.random() * 4;
+    doorSimulationData.value.systemParams.vibration = Math.random() * 0.3;
+    
+    console.log('Door simulation update:', {
+      status: currentState,
+      percentage: doorSimulationData.value.openPercentage,
+      resistance: doorSimulationData.value.contactResistance.toFixed(2),
+      current: doorSimulationData.value.motorCurrent.toFixed(1)
+    });
+    
+    cycle++;
+  }, durations[cycle % durations.length]);
+};
+
 // 为不同的参数组分配不同的图表类型
 const getChartTypeForGroup = (group) => {
   // 门系统特定的图表类型
@@ -459,6 +528,9 @@ onMounted(() => {
     createGaugeCharts();
   }, 100);
   
+  // 启动门系统模拟
+  startDoorSimulation();
+  
   // 设置定时更新数据，每3秒更新一次
   dataUpdateInterval = setInterval(() => {
     updateSystemData();
@@ -479,6 +551,11 @@ onBeforeUnmount(() => {
     dataUpdateInterval = null;
   }
   
+  // 停止门系统模拟
+  if (doorSimulationInterval) {
+    clearInterval(doorSimulationInterval);
+  }
+  
   // 移除窗口大小变化监听
   window.removeEventListener('resize', () => {});
   
@@ -495,7 +572,10 @@ onBeforeUnmount(() => {
     <div v-if="systemData" class="system-content">
       <!-- 悬浮标题 -->
       <div class="floating-header">
-        <h1 class="system-title">{{ systemData.name }}</h1>
+        <div class="panel-header">
+          <h1 class="system-title tech-text">{{ systemData.name }}</h1>
+          <div class="tech-decoration"></div>
+        </div>
       </div>
 
       <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
@@ -528,7 +608,15 @@ onBeforeUnmount(() => {
         <!-- 中间3D模型列 -->
         <div class="center-column">
           <div class="model-3d-container">
-            <DoorModelViewer :auto-rotate="true" />
+            <DoorModelViewer 
+              :auto-rotate="true"
+              :door-status="doorSimulationData.doorStatus"
+              :open-percentage="doorSimulationData.openPercentage"
+              :contact-resistance="doorSimulationData.contactResistance"
+              :motor-current="doorSimulationData.motorCurrent"
+              :opening-time="doorSimulationData.openingTime"
+              :system-params="doorSimulationData.systemParams"
+            />
           </div>
         </div>
 
@@ -607,14 +695,65 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: none;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 20px;
+  border-bottom: none;
+  background: transparent;
+  border-radius: 8px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+}
+
 .system-title {
   margin: 0;
-  padding: 8px 20px;
   font-size: 1.6rem;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #4dabf5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(77, 171, 245, 0.5);
   display: inline-block;
 }
+
+.tech-text {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.tech-decoration {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tech-decoration::before,
+.tech-decoration::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  width: 50px;
+  background: linear-gradient(90deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
+  border-radius: 1px;
+}
+
+.tech-decoration::before {
+  left: -70px;
+}
+
+.tech-decoration::after {
+  right: -70px;
+  background: linear-gradient(270deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
+}
+
+
 
 /* 三列布局 - 调整列宽比例 */
 .main-content {

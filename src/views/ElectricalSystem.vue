@@ -45,19 +45,19 @@ const fetchSystemData = () => {
     manufacturer: '制造商：西子电梯',
     installDate: '安装日期：2023-01-15',
     maintenanceCycle: '维护周期：2个月',
-    parameters: [
+    parameters: {
       // 控制柜
-      { name: '控制柜温度', value: 55.5, unit: '°C', normal: '≤70°C', critical: '>85°C', group: '控制柜' },
-      { name: '控制柜湿度', value: 45.2, unit: '%', normal: '≤60%', critical: '>75%', group: '控制柜' },
-      { name: '主板温度', value: 48.8, unit: '°C', normal: '≤60°C', critical: '>75°C', group: '控制柜' },
-      { name: '控制器电压', value: 223.5, unit: 'V', normal: '220V±10%', critical: '>15%波动', group: '控制柜' },
+      cabinetTemperature: { name: '控制柜温度', value: 55.5, unit: '°C', min: 0, max: 100, normal: 70, warning: 65, critical: 85, group: '控制柜' },
+      cabinetHumidity: { name: '控制柜湿度', value: 45.2, unit: '%', min: 0, max: 100, normal: 60, warning: 60, critical: 75, group: '控制柜' },
+      mainboardTemperature: { name: '主板温度', value: 48.8, unit: '°C', min: 0, max: 100, normal: 60, warning: 60, critical: 75, group: '控制柜' },
+      controllerVoltage: { name: '控制器电压', value: 223.5, unit: 'V', min: 180, max: 260, normal: 220, warning: 235, critical: 245, group: '控制柜' },
       // 电机
-      { name: '电机电压', value: 380.2, unit: 'V', normal: '380V±10%', critical: '>15%波动', group: '电机' },
-      { name: '电机电流', value: 12.5, unit: 'A', normal: '≤15A', critical: '>18A', group: '电机' },
+      motorVoltage: { name: '电机电压', value: 380.2, unit: 'V', min: 300, max: 450, normal: 380, warning: 400, critical: 420, group: '电机' },
+      motorCurrent: { name: '电机电流', value: 12.5, unit: 'A', min: 0, max: 25, normal: 15, warning: 15, critical: 18, group: '电机' },
       // 电源
-      { name: '输入电压', value: 225, unit: 'V', normal: '220V±10%', critical: '>15%波动', group: '电源' },
-      { name: '电源频率', value: 50.2, unit: 'Hz', normal: '50Hz±0.5Hz', critical: '>1Hz波动', group: '电源' }
-    ],
+      inputVoltage: { name: '输入电压', value: 225, unit: 'V', min: 180, max: 260, normal: 220, warning: 235, critical: 245, group: '电源' },
+      powerFrequency: { name: '电源频率', value: 50.2, unit: 'Hz', min: 48, max: 52, normal: 50, warning: 50.5, critical: 51, group: '电源' }
+    },
     alarmThresholds: {
       temperature: { warning: 65, critical: 85 },
       voltage: { warning: 235, critical: 245 },
@@ -88,7 +88,7 @@ const createGaugeCharts = () => {
   gaugeCharts.value = [];
   
   // 获取控制柜参数
-  const controlParams = systemData.value.parameters.filter(p => p.group === '控制柜');
+  const controlParams = Object.values(systemData.value.parameters).filter(p => p.group === '控制柜');
   
   // 获取所有仪表盘DOM元素
   const gaugeEls = document.querySelectorAll('.param-gauge');
@@ -243,7 +243,7 @@ const updateGaugeCharts = () => {
   if (gaugeCharts.value.length === 0) return;
   
   // 获取控制柜参数
-  const controlParams = systemData.value.parameters.filter(p => p.group === '控制柜');
+  const controlParams = Object.values(systemData.value.parameters).filter(p => p.group === '控制柜');
   
   // 更新每个仪表盘的数据
   controlParams.forEach((param, index) => {
@@ -270,34 +270,26 @@ const updateSystemData = () => {
   if (!systemData.value) return;
   
   // 更新参数值
-  systemData.value.parameters.forEach(param => {
-    if (param.name === '控制柜温度') {
-      param.value = (50 + Math.random() * 15).toFixed(1) * 1;
-    } else if (param.name === '控制柜湿度') {
-      param.value = (40 + Math.random() * 20).toFixed(1) * 1;
-    } else if (param.name === '主板温度') {
-      param.value = (45 + Math.random() * 15).toFixed(1) * 1;
-    } else if (param.name === '控制器电压') {
-      const baseValue = 223.5;
-      const variation = Math.random() * 10 - 5; // -5到5的变化
-      param.value = (baseValue + variation).toFixed(1) * 1;
-    } else if (param.name === '电机电压') {
-      const baseValue = 380;
-      const variation = Math.random() * 10 - 5; // -5到5的变化
-      param.value = (baseValue + variation).toFixed(1) * 1;
-    } else if (param.name === '电机电流') {
-      param.value = (10 + Math.random() * 5).toFixed(1) * 1;
-    } else if (param.name === '输入电压') {
-      param.value = Math.floor(220 + Math.random() * 10 - 5);
-    } else if (param.name === '电源频率') {
-      param.value = (50 + (Math.random() * 0.6 - 0.3)).toFixed(1) * 1;
-    }
-  });
+  systemData.value.parameters.cabinetTemperature.value = (50 + Math.random() * 15).toFixed(1) * 1;
+  systemData.value.parameters.cabinetHumidity.value = (40 + Math.random() * 20).toFixed(1) * 1;
+  systemData.value.parameters.mainboardTemperature.value = (45 + Math.random() * 15).toFixed(1) * 1;
+  
+  const baseVoltage = 223.5;
+  const voltageVariation = Math.random() * 10 - 5; // -5到5的变化
+  systemData.value.parameters.controllerVoltage.value = (baseVoltage + voltageVariation).toFixed(1) * 1;
+  
+  const baseMotorVoltage = 380;
+  const motorVoltageVariation = Math.random() * 10 - 5; // -5到5的变化
+  systemData.value.parameters.motorVoltage.value = (baseMotorVoltage + motorVoltageVariation).toFixed(1) * 1;
+  
+  systemData.value.parameters.motorCurrent.value = (10 + Math.random() * 5).toFixed(1) * 1;
+  systemData.value.parameters.inputVoltage.value = Math.floor(220 + Math.random() * 10 - 5);
+  systemData.value.parameters.powerFrequency.value = (50 + (Math.random() * 0.6 - 0.3)).toFixed(1) * 1;
   
   // 更新历史数据，移除最早的数据点，添加新的数据点
-  const newTemp = systemData.value.parameters.find(p => p.name === '控制柜温度').value;
-  const newVoltage = systemData.value.parameters.find(p => p.name === '控制器电压').value;
-  const newCurrent = systemData.value.parameters.find(p => p.name === '电机电流').value;
+  const newTemp = systemData.value.parameters.cabinetTemperature.value;
+  const newVoltage = systemData.value.parameters.controllerVoltage.value;
+  const newCurrent = systemData.value.parameters.motorCurrent.value;
   
   systemData.value.historicalData.temperature.shift();
   systemData.value.historicalData.temperature.push(newTemp);
@@ -326,9 +318,9 @@ const updateSystemData = () => {
 const getKeyParameters = () => {
   if (!systemData.value) return [];
   
-  const cabinetTemp = systemData.value.parameters.find(p => p.name === '控制柜温度').value;
-  const voltage = systemData.value.parameters.find(p => p.name === '控制器电压').value;
-  const current = systemData.value.parameters.find(p => p.name === '电机电流').value;
+  const cabinetTemp = systemData.value.parameters.cabinetTemperature.value;
+  const voltage = systemData.value.parameters.controllerVoltage.value;
+  const current = systemData.value.parameters.motorCurrent.value;
   
   return [
     {
@@ -538,7 +530,10 @@ onBeforeUnmount(() => {
     <div v-if="systemData" class="system-content">
       <!-- 悬浮标题 -->
       <div class="floating-header">
-        <h1 class="system-title">{{ systemData.name }}</h1>
+        <div class="panel-header">
+          <h1 class="system-title tech-text">{{ systemData.name }}</h1>
+          <div class="tech-decoration"></div>
+        </div>
       </div>
 
       <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
@@ -548,7 +543,7 @@ onBeforeUnmount(() => {
           <!-- 控制柜参数 -->
           <div class="traction-parameters panel">
             <div class="parameter-grid">
-              <div v-for="(param, index) in systemData.parameters.filter(p => p.group === '控制柜')" 
+              <div v-for="(param, index) in Object.values(systemData.parameters).filter(p => p.group === '控制柜')" 
                    :key="index" 
                    class="parameter-item">
                 <div class="param-gauge"></div>
@@ -562,7 +557,7 @@ onBeforeUnmount(() => {
               <ParameterChart 
                 chartType="bar"
                 paramGroup="电机" 
-                :parameters="systemData.parameters.filter(p => p.group === '电机')" 
+                :parameters="Object.values(systemData.parameters).filter(p => p.group === '电机')" 
               />
             </div>
           </div>
@@ -571,7 +566,7 @@ onBeforeUnmount(() => {
         <!-- 中间3D模型列 -->
         <div class="center-column">
           <div class="model-3d-container">
-            <ElectricalModelViewer />
+            <ElectricalModelViewer :systemData="systemData" />
           </div>
         </div>
 
@@ -648,13 +643,62 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: none;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 20px;
+  border-bottom: none;
+  background: transparent;
+  border-radius: 8px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+}
+
 .system-title {
   margin: 0;
-  padding: 8px 20px;
   font-size: 1.6rem;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #4dabf5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(77, 171, 245, 0.5);
   display: inline-block;
+}
+
+.tech-text {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.tech-decoration {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tech-decoration::before,
+.tech-decoration::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  width: 50px;
+  background: linear-gradient(90deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
+  border-radius: 1px;
+}
+
+.tech-decoration::before {
+  left: -70px;
+}
+
+.tech-decoration::after {
+  right: -70px;
+  background: linear-gradient(270deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
 }
 
 /* 三列布局 - 调整列宽比例 */
@@ -896,4 +940,4 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

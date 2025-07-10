@@ -65,7 +65,8 @@ export default {
     const openai = new OpenAI({
       apiKey: apiKey,
       baseURL: 'https://api.deepseek.com/v1',
-      dangerouslyAllowBrowser: true // 在浏览器环境中使用需要添加此项
+      dangerouslyAllowBrowser: true, // 在浏览器环境中使用需要添加此项
+      timeout: 60000 // 设置超时时间为1分钟
     });
 
     // 1. 定义系统通用提示词，增加对systemSqName的强制约束
@@ -262,4 +263,4 @@ export default {
         };
       });
   }
-}; 
+};

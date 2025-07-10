@@ -50,7 +50,7 @@ const handleGenerateAbnormal = () => {
 <template>
   <div class="footer-panel">
     <div class="footer-left">
-      <div class="copyright">&copy; {{ currentYear }} 电梯数字孪生系统</div>
+      <div class="copyright">&copy; {{ currentYear }} 云智梯系统</div>
     </div>
     
     <div class="footer-center">

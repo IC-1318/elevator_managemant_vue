@@ -21,6 +21,16 @@ let dataUpdateInterval = null;
 // 存储所有仪表盘图表实例
 const gaugeCharts = ref([]);
 
+// 模拟数据，用于驱动3D模型动画
+const simulationData = ref({
+  elevatorPosition: 0, // 电梯位置 (楼层)
+  elevatorSpeed: 0, // 电梯速度 (m/s)
+  vibration: 0, // 振动值 (0-10)
+  temperature: 25, // 温度 (°C)
+  guideShoeWear: 1.2, // 导靴磨损量 (mm)
+  railAlignment: 0.3 // 导轨对齐度偏差 (mm)
+});
+
 // 为不同的参数组分配不同的图表类型
 const getChartTypeForGroup = (group) => {
   // 导向系统特定的图表类型
@@ -257,14 +267,28 @@ const updateSystemData = () => {
   systemData.value.parameters.forEach(param => {
     if (param.name === '导轨垂直度偏差') {
       param.value = (0.25 + Math.random() * 0.3).toFixed(2) * 1;
+      simulationData.value.railAlignment = param.value;
     } else if (param.name === '接头间隙') {
       param.value = (0.35 + Math.random() * 0.2).toFixed(2) * 1;
     } else if (param.name === '导靴磨损量') {
       param.value = (1.0 + Math.random() * 1.5).toFixed(1) * 1;
+      simulationData.value.guideShoeWear = param.value;
     } else if (param.name === '振动值') {
       param.value = (0.6 + Math.random() * 1.0).toFixed(1) * 1;
+      simulationData.value.vibration = param.value;
     }
   });
+  
+  // 模拟电梯运行状态
+  // 电梯位置在0-10楼之间变化
+  simulationData.value.elevatorPosition = Math.sin(Date.now() / 5000) * 5 + 5;
+  
+  // 电梯速度根据位置变化计算
+  const positionChange = Math.cos(Date.now() / 5000) * 5;
+  simulationData.value.elevatorSpeed = Math.abs(positionChange / 5);
+  
+  // 温度模拟（25-35度之间变化）
+  simulationData.value.temperature = 25 + Math.sin(Date.now() / 10000) * 5 + Math.random() * 2;
   
   // 更新历史数据，移除最早的数据点，添加新的数据点
   const newVerticality = systemData.value.parameters.find(p => p.name === '导轨垂直度偏差').value;
@@ -492,7 +516,10 @@ onBeforeUnmount(() => {
     <div v-if="systemData" class="system-content">
       <!-- 悬浮标题 -->
       <div class="floating-header">
-        <h1 class="system-title">{{ systemData.name }}</h1>
+        <div class="panel-header">
+          <h1 class="system-title tech-text">{{ systemData.name }}</h1>
+          <div class="tech-decoration"></div>
+        </div>
       </div>
 
       <!-- 三列布局：左侧参数 - 中间3D模型 - 右侧图表 -->
@@ -525,7 +552,15 @@ onBeforeUnmount(() => {
         <!-- 中间3D模型列 -->
         <div class="center-column">
           <div class="model-3d-container">
-            <GuidanceModelViewer />
+            <GuidanceModelViewer 
+              :autoRotate="true"
+              :elevatorPosition="simulationData.elevatorPosition"
+              :elevatorSpeed="simulationData.elevatorSpeed"
+              :vibration="simulationData.vibration"
+              :temperature="simulationData.temperature"
+              :guideShoeWear="simulationData.guideShoeWear"
+              :railAlignment="simulationData.railAlignment"
+            />
           </div>
         </div>
 
@@ -602,13 +637,62 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: none;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 20px;
+  border-bottom: none;
+  background: transparent;
+  border-radius: 8px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+}
+
 .system-title {
   margin: 0;
-  padding: 8px 20px;
   font-size: 1.6rem;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  color: #4dabf5;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(77, 171, 245, 0.5);
   display: inline-block;
+}
+
+.tech-text {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.tech-decoration {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tech-decoration::before,
+.tech-decoration::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  width: 50px;
+  background: linear-gradient(90deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
+  border-radius: 1px;
+}
+
+.tech-decoration::before {
+  left: -70px;
+}
+
+.tech-decoration::after {
+  right: -70px;
+  background: linear-gradient(270deg, rgba(77, 171, 245, 0.8), rgba(77, 171, 245, 0.2));
 }
 
 /* 三列布局 - 调整列宽比例 */
@@ -850,4 +934,4 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

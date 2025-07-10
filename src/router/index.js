@@ -8,6 +8,8 @@ import AbnormalData from '../views/AbnormalData.vue'
 import UserManagement from '../views/UserManagement.vue'
 import MaintenanceLog from '../views/MaintenanceLog.vue'
 import MaintenanceWorkerDashboard from '../views/MaintenanceWorkerDashboard.vue'
+import SystemArchitecture from '../views/SystemArchitecture.vue'
+import SystemRelationshipChart from '../views/SystemRelationshipChart.vue'
 import AuthService from '../services/authService';
 
 const router = createRouter({
@@ -59,6 +61,18 @@ const router = createRouter({
       path: '/maintenance-log',
       name: 'maintenance-log',
       component: MaintenanceLog,
+      meta: { requiresAuth: true, roles: ['admin'] }
+    },
+    {
+      path: '/system-architecture',
+      name: 'system-architecture',
+      component: SystemArchitecture,
+      meta: { requiresAuth: true, roles: ['admin'] }
+    },
+    {
+      path: '/system-relationship-chart',
+      name: 'system-relationship-chart',
+      component: SystemRelationshipChart,
       meta: { requiresAuth: true, roles: ['admin'] }
     },
     {

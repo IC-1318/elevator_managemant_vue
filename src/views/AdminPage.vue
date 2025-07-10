@@ -244,6 +244,7 @@ const { aiRecommendation } = useAIAnalysis();
 // 快速操作菜单
 const quickActions = [
   { name: '系统报表', icon: '📊', route: '/', color: 'rgba(33, 150, 243, 0.3)' },
+  { name: '系统关系图', icon: '🔗', route: '/system-relationship-chart', color: 'rgba(139, 92, 246, 0.3)' },
   { name: '用户管理', icon: '👥', route: '/user-management', color: 'rgba(76, 175, 80, 0.3)' },
   { name: '维护记录', icon: '📝', route: '/maintenance-log', color: 'rgba(255, 152, 0, 0.3)' },
   { name: '报警管理', icon: '⚠️', route: '/abnormal-data', color: 'rgba(244, 67, 54, 0.3)' },
@@ -350,9 +351,9 @@ const handleQuickActionClick = (route) => {
                     <span class="action-icon">🛠️</span>
                     <span class="action-text">维修日志</span>
                   </div>
-                  <div class="action-card" @click="handleQuickActionClick('/')">
+                  <div class="action-card" @click="handleQuickActionClick('/system-relationship-chart')">
                     <span class="action-icon">📊</span>
-                    <span class="action-text">系统报表</span>
+                    <span class="action-text">系统总览</span>
                   </div>
                 </div>
               </div>
@@ -1331,4 +1332,4 @@ const handleQuickActionClick = (route) => {
   margin-bottom: 15px;
   font-weight: 500;
 }
-</style> 
+</style>
