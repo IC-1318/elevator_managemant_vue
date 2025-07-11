@@ -128,12 +128,12 @@ const adminPermissions = {
 }
 
 .brand-icon {
-  font-size: 1.5rem;
+  font-size: 2.2rem;
   margin-right: 10px;
 }
 
 .brand-text {
-  font-size: 1.1rem;
+  font-size: 1.4rem;
   font-weight: 600;
   background: linear-gradient(90deg, var(--primary-color), #2ecc71);
   -webkit-background-clip: text;

@@ -43,6 +43,7 @@ export default {
    * @param {number} data.userId - 用户ID
    * @param {string} data.status - 维护状态
    * @param {string} [data.remark] - 备注信息
+   * @param {string} [data.descr] - 维修日志描述
    * @returns {Promise<Object>} 返回更新结果
    */
   updateMaintenance(data) {
