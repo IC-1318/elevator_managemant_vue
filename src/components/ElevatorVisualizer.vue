@@ -50,7 +50,7 @@ const toggleCameraMode = () => {
   emit('toggle-360-mode');
 };
 
-// 电梯仓井DOM引用
+// 智云梯仓井DOM引用
 const elevatorContainer = ref(null);
 
 // Three.js 相关变量
@@ -191,7 +191,7 @@ const initThreeJS = () => {
     frontLight.position.set(0, 15, SHAFT_DEPTH);
     scene.add(frontLight);
     
-    // 创建逼真的电梯系统
+    // 创建逼真的智云梯系统
     createElevatorShaft();
     createElevatorCabin();
     createFloorLights();

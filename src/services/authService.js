@@ -117,7 +117,13 @@ const AuthService = {
     if (this.isAuthenticated()) {
       const role = this.getUserRole();
       // 根据角色跳转到不同页面
-      return role === 'admin' ? '/' : '/maintenance-dashboard';
+      if (role === 'admin') {
+        return '/';
+      } else if (role === 'maintenance') {
+        return '/maintenance-dashboard';
+      } else {
+        return '/';
+      }
     }
     return '/login';
   },

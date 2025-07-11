@@ -22,7 +22,7 @@ const doorStatusClass = computed(() => {
 <template>
   <div class="status-panel">
     <div class="status-section">
-      <div class="section-title">电梯状态</div>
+      <div class="section-title">智云梯状态</div>
       <div class="status-display">
         <div class="status-item">
           <div class="status-label">运行状态</div>

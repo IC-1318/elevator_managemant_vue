@@ -3,7 +3,7 @@ import { abnormalDataApi } from '../api';
 
 /**
  * 数据采集服务
- * 负责收集电梯系统数据，检测异常，并将异常数据发送给后端
+ * 负责收集智云梯系统数据，检测异常，并将异常数据发送给后端
  */
 class DataCollectionService {
   /**
@@ -29,8 +29,8 @@ class DataCollectionService {
   }
 
   /**
-   * 设置电梯ID
-   * @param {string} elevatorId - 电梯唯一标识
+   * 设置智云梯ID
+   * @param {string} elevatorId - 智云梯唯一标识
    */
   setElevatorId(elevatorId) {
     this.elevatorId = elevatorId;
@@ -78,13 +78,13 @@ class DataCollectionService {
 
   /**
    * 开始数据采集
-   * @param {Object} elevatorData - 电梯数据对象
+   * @param {Object} elevatorData - 智云梯数据对象
    * @param {Function} onAnomalyDetected - 异常检测回调函数
    * @returns {boolean} 是否成功启动采集
    */
   startCollection(elevatorData, onAnomalyDetected) {
     if (this.isCollecting || !this.elevatorId) {
-      console.warn('数据采集已在进行或电梯ID未设置');
+      console.warn('数据采集已在进行或智云梯ID未设置');
       return false;
     }
 
@@ -101,7 +101,7 @@ class DataCollectionService {
 
     // 不再自动检查AI分析结果
 
-    console.log(`电梯 ${this.elevatorId} 数据采集已启动，间隔: ${this.collectionInterval}ms`);
+    console.log(`智云梯 ${this.elevatorId} 数据采集已启动，间隔: ${this.collectionInterval}ms`);
     return true;
   }
 
@@ -124,7 +124,7 @@ class DataCollectionService {
 
     // 不再需要清除AI分析结果检查定时器
 
-    console.log(`电梯 ${this.elevatorId} 数据采集已停止`);
+    console.log(`智云梯 ${this.elevatorId} 数据采集已停止`);
   }
 
   /**
@@ -133,7 +133,7 @@ class DataCollectionService {
    */
   collectAndProcessData() {
     if (!this.elevatorData || !this.elevatorData.value) {
-      console.warn('电梯数据对象无效');
+      console.warn('智云梯数据对象无效');
       return;
     }
 
@@ -181,7 +181,7 @@ class DataCollectionService {
 
   /**
    * 检测异常数据
-   * @param {Object} data - 电梯数据
+   * @param {Object} data - 智云梯数据
    * @param {number} timestamp - 时间戳
    * @returns {Array} 异常数据数组
    * @private
@@ -397,7 +397,7 @@ class DataCollectionService {
           const abnormalData = {
             systemName: anomaly.systemName,
             systemSqName: anomaly.type === 'parameter' ? anomaly.paramName : anomaly.faultCode || '未知',
-            eName: this.elevatorId || '电梯',
+            eName: this.elevatorId || '智云梯',
             eData: anomaly.type === 'parameter' ? anomaly.paramValue : anomaly.faultCode || 0
           };
           
@@ -558,4 +558,4 @@ class DataCollectionService {
   }
 }
 
-export default DataCollectionService; 
+export default DataCollectionService;

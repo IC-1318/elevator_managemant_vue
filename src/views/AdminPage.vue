@@ -170,18 +170,18 @@ const closeDetailedAnalysis = (event) => {
 const adminInfo = {
   name: '系统管理员',
   role: '超级管理员',
-  department: '电梯维护部',
+  department: '智云梯维护部',
   phone: '138****8888',
-  email: 'admin@elevator.com',
+  email: 'admin@smartelevator.com',
   lastLogin: '2023-12-20 10:30:45',
-  permissions: ['系统配置', '用户管理', '电梯监控', '维护记录', '报警处理']
+  permissions: ['系统配置', '用户管理', '智云梯监控', '维护记录', '报警处理']
 };
 
 // 模拟系统信息
 const systemInfo = ref({
   version: 'v1.0.0',
   uptime: '2年45天',
-  totalElevators: 12,
+  totalSmartElevators: 12,
   activeAlerts: 0,
   pendingMaintenance: 0,
 });
@@ -252,7 +252,7 @@ const quickActions = [
 
 // 系统健康状态
 const systemHealth = computed(() => {
-  const total = systemInfo.value.totalElevators;
+  const total = systemInfo.value.totalSmartElevators;
   const alerts = systemInfo.value.activeAlerts;
   const maintenance = systemInfo.value.pendingMaintenance;
   
@@ -461,8 +461,8 @@ const handleQuickActionClick = (route) => {
                 <div class="info-value">{{ systemInfo.uptime }}</div>
               </div>
               <div class="system-info-item">
-                <div class="info-label">电梯总数</div>
-                <div class="info-value">{{ systemInfo.totalElevators }}</div>
+                <div class="info-label">智云梯总数</div>
+            <div class="info-value">{{ systemInfo.totalSmartElevators }}</div>
               </div>
               <div class="system-info-item">
                 <div class="info-label">活跃警报</div>
@@ -480,7 +480,7 @@ const handleQuickActionClick = (route) => {
                 <div class="ai-icon-wrapper">
                   <span class="ai-icon">🤖</span>
                 </div>
-                <h3 class="ai-title tech-text">电梯寿命预测分析</h3>
+                <h3 class="ai-title tech-text">智云梯寿命预测分析</h3>
                 <button class="ai-predict-button" @click="toggleAIAnalysis">
                   {{ isAIExpanded ? '收起' : '获取AI预测' }}
                 </button>

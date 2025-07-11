@@ -1,4 +1,4 @@
-const WEBSOCKET_URL = 'ws://10.181.198.148:8080/ws/elevator'; // 后端WebSocket服务器地址
+const WEBSOCKET_URL = 'ws://10.181.198.148:8080/ws/elevator'; // 智云梯后端WebSocket服务器地址
 
 class ElevatorSocketService {
   constructor() {
@@ -8,7 +8,7 @@ class ElevatorSocketService {
 
   /**
    * 连接到WebSocket服务器
-   * @param {string} elevatorId - 要订阅的电梯ID
+   * @param {string} elevatorId - 要订阅的智云梯ID
    * @param {function} onMessageCallback - 收到消息时的回调函数
    */
   connect(elevatorId, onMessageCallback) {
@@ -60,8 +60,8 @@ class ElevatorSocketService {
   }
 
   /**
-   * 指示电梯去往指定楼层
-   * @param {string} elevatorId - 电梯ID
+   * 指示智云梯去往指定楼层
+   * @param {string} elevatorId - 智云梯ID
    * @param {number} floor - 目标楼层
    */
   goToFloor(elevatorId, floor) {
@@ -73,8 +73,8 @@ class ElevatorSocketService {
   }
 
   /**
-   * 切换电梯门状态 (开/关)
-   * @param {string} elevatorId - 电梯ID
+   * 切换智云梯门状态 (开/关)
+   * @param {string} elevatorId - 智云梯ID
    */
   toggleDoor(elevatorId) {
     this.sendCommand({
@@ -84,8 +84,8 @@ class ElevatorSocketService {
   }
 
   /**
-   * 紧急停止电梯
-   * @param {string} elevatorId - 电梯ID
+   * 紧急停止智云梯
+   * @param {string} elevatorId - 智云梯ID
    */
   emergencyStop(elevatorId) {
     this.sendCommand({
@@ -95,8 +95,8 @@ class ElevatorSocketService {
   }
 
   /**
-   * 恢复电梯运行
-   * @param {string} elevatorId - 电梯ID
+   * 恢复智云梯运行
+   * @param {string} elevatorId - 智云梯ID
    */
   resumeOperation(elevatorId) {
     this.sendCommand({

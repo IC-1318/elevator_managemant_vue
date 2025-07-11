@@ -58,7 +58,7 @@ const toggleDoor = () => {
     </div>
     
     <div class="control-section">
-      <div class="section-title">电梯控制</div>
+      <div class="section-title">智云梯控制</div>
       <div class="action-buttons">
         <button 
           class="action-button door-button"

@@ -71,11 +71,11 @@ const props = defineProps({
 const adminInfo = {
   name: '系统管理员',
   role: '超级管理员',
-  department: '电梯维护部',
+  department: '智云梯维护部',
   phone: '138****8888',
-  email: 'admin@elevator.com',
+  email: 'admin@smartelevator.com',
   lastLogin: '2023-12-20 10:30:45',
-  permissions: ['系统配置', '用户管理', '电梯监控', '维护记录', '报警处理']
+  permissions: ['系统配置', '用户管理', '智云梯监控', '维护记录', '报警处理']
 };
 
 const toggleAdminProfile = () => {
@@ -196,7 +196,7 @@ const goToAdminPage = () => {
     <div class="header-panel">
       <div class="system-title-container">
         <h1 class="system-title">云智梯驾驶舱</h1>
-        <div class="subtitle">CloudSmart Elevator Cockpit</div>
+        <div class="subtitle">Smart Cloud Elevator Cockpit</div>
         <div class="datetime-display">
           <div class="time-display tech-text">{{ currentTime }}</div>
         </div>

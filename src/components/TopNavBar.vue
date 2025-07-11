@@ -32,7 +32,7 @@ const toggleAdminProfile = () => {
 
 // 模拟管理员权限
 const adminPermissions = {
-  admin: ['系统配置', '用户管理', '电梯监控', '维护记录', '报警处理'],
+  admin: ['系统配置', '用户管理', '智云梯监控', '维护记录', '报警处理'],
   maintenance: ['维修任务', '任务提交', '系统检查']
 };
 </script>
@@ -41,7 +41,7 @@ const adminPermissions = {
   <div class="top-navbar">
     <div class="navbar-brand">
       <span class="brand-icon">🏢</span>
-      <span class="brand-text">电梯系统管理平台</span>
+      <span class="brand-text">智云梯</span>
     </div>
     
     <div class="navbar-actions">

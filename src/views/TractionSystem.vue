@@ -40,7 +40,7 @@ const fetchSystemData = () => {
   systemData.value = {
     name: '曳引系统',
     icon: '⚙️',
-    description: '负责电梯轿厢的上下运动，是电梯的核心动力系统。',
+    description: '负责智云梯轿厢的上下运动，是智云梯的核心动力系统。',
     model: '型号：XFYT-2000',
     manufacturer: '制造商：西子电梯',
     installDate: '安装日期：2023-01-15',

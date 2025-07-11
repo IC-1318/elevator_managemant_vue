@@ -46,7 +46,7 @@
           </div>
         </div>
           <div class="item-body">
-            <div class="info-item"><strong>电梯:</strong> {{ item.eName }}</div>
+            <div class="info-item"><strong>智云梯:</strong> {{ item.eName }}</div>
             <div class="info-item"><strong>故障系统:</strong> <span class="system-name" :class="getSeverityClass(item.systemName)">{{ item.systemName }}</span></div>
             <div class="info-item"><strong>子系统:</strong> {{ item.systemSqName }}</div>
             <div class="info-item"><strong>异常数据:</strong> <span class="data-value">{{ item.eData }}</span></div>

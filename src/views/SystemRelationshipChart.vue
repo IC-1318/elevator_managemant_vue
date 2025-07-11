@@ -350,7 +350,7 @@ const getChartData = () => {
     // 核心系统 - 中心位置
     {
       id: 'core-system',
-      name: '电梯核心系统',
+      name: '智云梯核心系统',
       category: '核心控制',
       value: 100,
       x: 400,
@@ -358,7 +358,7 @@ const getChartData = () => {
       symbolSize: 80,
       itemStyle: { color: '#8b5cf6' },
       statusText: '运行正常',
-      description: '电梯系统的核心控制单元，负责协调各子系统运行',
+      description: '智云梯系统的核心控制单元，负责协调各子系统运行',
       metrics: [
         { name: 'CPU使用率', value: '45%' },
         { name: '内存使用', value: '2.1GB' },
@@ -411,7 +411,7 @@ const getChartData = () => {
       symbolSize: 58,
       itemStyle: { color: '#f59e0b' },
       statusText: '轻微警告',
-      description: '电梯的电气控制和安全保护系统',
+      description: '智云梯的电气控制和安全保护系统',
       metrics: [
         { name: '电压', value: '380V' },
         { name: '电流', value: '12.5A' },
