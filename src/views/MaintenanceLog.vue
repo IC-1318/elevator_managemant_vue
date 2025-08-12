@@ -162,6 +162,12 @@ onMounted(async () => {
   <div class="maintenance-log-view">
     <TechGridBackground />
     <div class="maintenance-header">
+      <div class="back-button" @click="$router.go(-1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        返回
+      </div>
       <h1 class="admin-title tech-text glow">维护记录管理</h1>
     </div>
 
@@ -228,6 +234,28 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.back-button {
+  position: absolute;
+  left: 2vw;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+  color: #4dabf5;
+  transition: all 0.3s;
+  z-index: 1000;
+}
+
+.back-button:hover {
+  color: var(--text-color);
+  transform: translateY(-3px);
+}
+
+.back-button svg {
+  margin-right: 5px;
+  stroke: #4dabf5;
+}
 /* General View Styles */
 .maintenance-log-view {
   padding: 1.5vh;

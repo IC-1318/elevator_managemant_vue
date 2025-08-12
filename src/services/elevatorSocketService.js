@@ -1,4 +1,16 @@
-const WEBSOCKET_URL = 'ws://10.181.198.148:8080/ws/elevator'; // 智云梯后端WebSocket服务器地址
+// 根据环境动态配置WebSocket URL
+const getWebSocketURL = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // 生产环境使用当前域名
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/ws/elevator`;
+  } else {
+    // 开发环境使用localhost
+    return 'ws://localhost:8080/ws/elevator';
+  }
+};
+
+const WEBSOCKET_URL = getWebSocketURL();
 
 class ElevatorSocketService {
   constructor() {

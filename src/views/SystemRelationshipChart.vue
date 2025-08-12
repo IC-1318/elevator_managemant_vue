@@ -4,6 +4,13 @@
     
     <!-- 页面头部 -->
     <div class="maintenance-header">
+      <TechGridBackground />
+      <!-- 返回按钮 -->
+      <div class="back-button" @click="$router.go(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+      </div>
       <h1 class="admin-title tech-text glow">系统总览</h1>
     </div>
 
@@ -815,6 +822,36 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.back-button {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  left: 2vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.5);
+  color: #4dabf5;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
+  z-index: 1000;
+}
+
+.back-button:hover {
+  color: var(--text-color);
+  background: rgba(33, 150, 243, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 18px rgba(33, 150, 243, 0.6);
+}
+
+.back-button svg {
+  margin-right: 5px;
+  stroke: #4dabf5;
+}
+
 .system-relationship-chart {
   position: relative;
   width: 100%;

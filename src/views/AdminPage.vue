@@ -1254,16 +1254,28 @@ const handleQuickActionClick = (route) => {
 
 .back-button {
   position: absolute;
-  left: 2vw;
+  left: 25px;
+  top: 20px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
-  color: var(--text-secondary);
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.5);
+  color: #4dabf5;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.3s;
+  box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
+  z-index: 1000;
 }
 
 .back-button:hover {
   color: var(--text-color);
+  background: rgba(33, 150, 243, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 18px rgba(33, 150, 243, 0.6);
 }
 
 .back-button svg {

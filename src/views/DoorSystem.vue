@@ -569,6 +569,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="system-view">
+    <TechGridBackground />
+    <!-- 返回按钮 -->
+    <div class="back-button" @click="$router.go(-1)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+    </div>
     <div v-if="systemData" class="system-content">
       <!-- 悬浮标题 -->
       <div class="floating-header">
@@ -666,6 +673,44 @@ onBeforeUnmount(() => {
   overflow-x: hidden;
 }
 
+@media (max-width: 768px) {
+  .back-button {
+    left: 15px;
+    top: 15px;
+  }
+}
+
+.back-button {
+  position: absolute;
+  left: 25px;
+  top: 20px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.5);
+  color: #4dabf5;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
+  z-index: 1000;
+}
+
+.back-button:hover {
+  color: var(--text-color);
+  background: rgba(33, 150, 243, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 18px rgba(33, 150, 243, 0.6);
+}
+
+.back-button svg {
+  margin-right: 5px;
+  stroke: #4dabf5;
+}
+
 .system-content {
   padding: 0; /* 移除水平内边距，解决右侧偏移问题 */
   max-width: 100%;
@@ -679,7 +724,7 @@ onBeforeUnmount(() => {
 /* 悬浮标题样式 */
 .floating-header {
   position: fixed;
-  top: 10px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -761,7 +806,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 1.2fr 1fr 1.2fr; /* 调整比例，增加左右列宽度，减少中间列宽度 */
   gap: 15px; /* 增加列间距 */
   margin-bottom: 0; /* 移除底部边距 */
-  margin-top: 50px; /* 为悬浮标题留出空间 */
+  margin-top: 100px; /* 为悬浮标题留出空间 */
   width: 100%;
   height: calc(100vh - 60px); /* 减少更多空间，只为标题留出空间 */
   flex: 1; /* 让主内容填满剩余空间 */

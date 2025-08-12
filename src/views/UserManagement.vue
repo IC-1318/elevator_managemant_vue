@@ -213,9 +213,13 @@ onMounted(() => {
 
 <template>
   <div class="user-management-page">
-    <TechGridBackground />
     
     <div class="panel main-panel">
+      <div class="back-button" @click="$router.go(-1)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
       <div class="panel-header">
         <h2 class="panel-title tech-text">用户管理</h2>
         <div class="panel-controls">
@@ -345,6 +349,28 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.back-button {
+  position: absolute;
+  left: 2vw;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+  color: #4dabf5;
+  transition: all 0.3s;
+  z-index: 1000;
+}
+
+.back-button:hover {
+  color: var(--text-color);
+  transform: translateY(-3px);
+}
+
+.back-button svg {
+  margin-right: 5px;
+  stroke: #4dabf5;
+}
 .user-management-page {
   width: 100%;
   height: 100%;
@@ -372,7 +398,8 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2vh;
-  padding-bottom: 1vh;
+  margin-top: 3vh;
+  padding-bottom: 2vh;
   border-bottom: 1px solid rgba(33, 150, 243, 0.3);
 }
 

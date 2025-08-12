@@ -11,10 +11,19 @@ export default defineConfig({
       'three/addons/': 'three/examples/jsm/'
     }
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'static',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
   server: {
     proxy: {
       '/api': {
-        target: 'http://10.181.198.148:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
